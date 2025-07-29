@@ -25,11 +25,13 @@ function AppWithSession({ Component, pageProps }: AppProps) {
   );
 }
 
-export default function App({ Component, pageProps }: AppProps) {
+export default function App(props: AppProps) {
+  const { Component, pageProps } = props;
+  
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AppWithSession Component={Component} pageProps={pageProps} />
+        <AppWithSession {...props} />
       </AuthProvider>
     </QueryClientProvider>
   );

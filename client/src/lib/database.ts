@@ -181,4 +181,37 @@ export class DatabaseService {
       updatedAt: new Date(doc.updated_at),
     }));
   }
+
+  // Load all rooms for the current user
+  static async loadRooms(): Promise<SecureRoom[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('rooms')
+      .select('*')
+      .or(`creator_id.eq.${user.id},invitee_id.eq.${user.id}`)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return (data || []).map(room => ({
+      id: room.external_id,
+      name: room.name,
+      creatorId: room.creator_id,
+      participants: [],
+      encryptionKey: room.encryption_key,
+      status: room.status,
+      createdAt: new Date(room.created_at),
+      updatedAt: new Date(room.updated_at),
+    }));
+  }
+
+  // Load all documents for the current user
+  static async loadDocuments(): Promise<Document[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    return this.loadUserDocuments(user.id);
+  }
 }

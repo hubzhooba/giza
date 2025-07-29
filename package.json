@@ -21,6 +21,10 @@
     "lint": "npm run lint --workspaces --if-present",
     "clean": "rm -rf node_modules client/node_modules server/node_modules client/.next server/dist"
   },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "devDependencies": {
     "concurrently": "^8.2.2"
   }
