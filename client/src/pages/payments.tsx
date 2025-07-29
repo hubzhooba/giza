@@ -2,22 +2,15 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { DollarSign, Clock, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { useStore } from '@/store/useStore';
-import { useEffect } from 'react';
+import { ProtectedPage } from '@/components/ProtectedPage';
 
 export default function Payments() {
   const router = useRouter();
   const { user } = useStore();
 
-  useEffect(() => {
-    if (!user) {
-      router.push('/login');
-    }
-  }, [user, router]);
-
-  if (!user) return null;
-
   return (
-    <DashboardLayout>
+    <ProtectedPage>
+      <DashboardLayout>
       <div className="mb-8">
         <h1 className="text-3xl font-semibold">Payments</h1>
         <p className="text-gray-600 mt-2">Track all your incoming and outgoing payments</p>
@@ -62,6 +55,7 @@ export default function Payments() {
           <p className="text-gray-600">Your payment history will appear here</p>
         </div>
       </div>
-    </DashboardLayout>
+      </DashboardLayout>
+    </ProtectedPage>
   );
 }

@@ -13,11 +13,14 @@ export function AuthGuard({ children, requireAuth = true }: AuthGuardProps) {
   const { user } = useStore();
   const [isChecking, setIsChecking] = useState(true);
 
+  console.log('AuthGuard render:', { user, requireAuth, isChecking });
+
   useEffect(() => {
     // Give auth state listener time to check session
     const timer = setTimeout(() => {
+      console.log('AuthGuard check timer finished');
       setIsChecking(false);
-    }, 500);
+    }, 1000); // Increased to 1 second
 
     return () => clearTimeout(timer);
   }, []);

@@ -11,10 +11,13 @@ export function useAuthStateListener() {
   useEffect(() => {
     // Check for existing session on mount
     const checkSession = async () => {
+      console.log('Checking for existing session...');
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        console.log('Session check result:', session);
         
         if (session?.user) {
+          console.log('Session found, loading user:', session.user.email);
           // Load user profile
           const { data: profile, error } = await supabase
             .from('profiles')

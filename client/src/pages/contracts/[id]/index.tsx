@@ -7,6 +7,7 @@ import {
   DollarSign, MessageSquare, ExternalLink, Plus
 } from 'lucide-react';
 import Link from 'next/link';
+import { ProtectedPage } from '@/components/ProtectedPage';
 
 export default function ContractDetail() {
   const router = useRouter();
@@ -19,11 +20,13 @@ export default function ContractDetail() {
 
   if (!room) {
     return (
-      <DashboardLayout>
-        <div className="text-center py-12">
-          <p className="text-gray-500">Contract not found</p>
-        </div>
-      </DashboardLayout>
+      <ProtectedPage>
+        <DashboardLayout>
+          <div className="text-center py-12">
+            <p className="text-gray-500">Contract not found</p>
+          </div>
+        </DashboardLayout>
+      </ProtectedPage>
     );
   }
 
@@ -31,7 +34,8 @@ export default function ContractDetail() {
   const pendingSigners = room.participants.filter(p => !p.hasJoined && p.role === 'signer');
 
   return (
-    <DashboardLayout>
+    <ProtectedPage>
+      <DashboardLayout>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -287,6 +291,7 @@ export default function ContractDetail() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+      </DashboardLayout>
+    </ProtectedPage>
   );
 }

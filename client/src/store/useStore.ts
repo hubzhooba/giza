@@ -20,19 +20,24 @@ interface AppState {
   setDocuments: (documents: Document[]) => void;
   addDocument: (document: Document) => Promise<void>;
   updateDocument: (documentId: string, updates: Partial<Document>) => Promise<void>;
+  loadRooms: () => Promise<void>;
+  loadDocuments: () => Promise<void>;
   logout: () => void;
 }
 
 export const useStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       currentRoom: null,
       privateKey: null,
       rooms: [],
       documents: [],
       
-      setUser: (user) => set({ user }),
+      setUser: (user) => {
+        console.log('Setting user in store:', user);
+        set({ user });
+      },
       setPrivateKey: (privateKey) => set({ privateKey }),
       setCurrentRoom: (currentRoom) => set({ currentRoom }),
       setRooms: (rooms) => set({ rooms }),
@@ -89,12 +94,30 @@ export const useStore = create<AppState>()(
           console.error(error);
         }
       },
+      loadRooms: async () => {
+        try {
+          const rooms = await DatabaseService.loadRooms();
+          set({ rooms });
+        } catch (error) {
+          console.error('Failed to load rooms:', error);
+        }
+      },
+      loadDocuments: async () => {
+        try {
+          const documents = await DatabaseService.loadDocuments();
+          set({ documents });
+        } catch (error) {
+          console.error('Failed to load documents:', error);
+        }
+      },
       logout: () => {
         const state = useStore.getState();
         // Clear private key from localStorage
         if (state.user) {
           localStorage.removeItem(`pk_${state.user.id}`);
         }
+        // Clear Supabase auth storage
+        localStorage.removeItem('supabase-auth-token');
         set({
           user: null,
           currentRoom: null,
@@ -108,7 +131,9 @@ export const useStore = create<AppState>()(
       name: 'freelance-platform-storage',
       partialize: (state) => ({
         privateKey: state.privateKey,
+        // Don't persist user - let Supabase handle auth state
       }),
+      version: 1,
     }
   )
 );

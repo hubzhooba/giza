@@ -5,6 +5,7 @@ import { useStore } from '@/store/useStore';
 import { Users, Mail, Send, Copy, Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { ProtectedPage } from '@/components/ProtectedPage';
 
 export default function InviteToContract() {
   const router = useRouter();
@@ -17,11 +18,13 @@ export default function InviteToContract() {
 
   if (!room) {
     return (
-      <DashboardLayout>
-        <div className="text-center py-12">
-          <p className="text-gray-500">Contract not found</p>
-        </div>
-      </DashboardLayout>
+      <ProtectedPage>
+        <DashboardLayout>
+          <div className="text-center py-12">
+            <p className="text-gray-500">Contract not found</p>
+          </div>
+        </DashboardLayout>
+      </ProtectedPage>
     );
   }
 
@@ -90,7 +93,8 @@ export default function InviteToContract() {
   };
 
   return (
-    <DashboardLayout>
+    <ProtectedPage>
+      <DashboardLayout>
       <div className="max-w-3xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-semibold">Invite Parties to Review Contract</h1>
@@ -225,6 +229,7 @@ export default function InviteToContract() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+      </DashboardLayout>
+    </ProtectedPage>
   );
 }

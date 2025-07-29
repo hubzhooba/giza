@@ -69,17 +69,23 @@ export default function Login() {
           console.log('Using fallback private key');
         }
         
-        // Create or update profile
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: authData.user.id,
-            email: authData.user.email,
-            full_name: profile?.name || authData.user.email,
-            public_key: profile?.publicKey || '',
-          });
+        // Only update profile if it doesn't exist or needs updating
+        if (!profile || !profile.public_key) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: authData.user.id,
+              email: authData.user.email,
+              full_name: profile?.name || profile?.full_name || authData.user.email,
+              public_key: profile?.public_key || '',
+            });
 
-        console.log('Profile upsert result:', profileError);
+          if (profileError) {
+            console.error('Profile upsert error:', profileError);
+          } else {
+            console.log('Profile updated successfully');
+          }
+        }
 
         setUser({
           id: authData.user.id,
@@ -107,6 +113,8 @@ export default function Login() {
     } catch (error) {
       console.error('Login error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to sign in');
+    } finally {
+      // Always clear loading state
       setLoading(false);
     }
   };

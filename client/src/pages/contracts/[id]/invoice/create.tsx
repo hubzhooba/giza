@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { ArweaveService } from '@/lib/arweave';
 import type { Invoice } from '@/types';
+import { ProtectedPage } from '@/components/ProtectedPage';
 
 interface PaymentSchedule {
   id: string;
@@ -349,18 +350,21 @@ export default function CreateInvoice() {
 
   if (!room) {
     return (
-      <DashboardLayout>
-        <div className="text-center py-12">
-          <p className="text-gray-500">Contract not found</p>
-        </div>
-      </DashboardLayout>
+      <ProtectedPage>
+        <DashboardLayout>
+          <div className="text-center py-12">
+            <p className="text-gray-500">Contract not found</p>
+          </div>
+        </DashboardLayout>
+      </ProtectedPage>
     );
   }
 
   const client = room.participants.find(p => p.role === 'signer');
 
   return (
-    <DashboardLayout>
+    <ProtectedPage>
+      <DashboardLayout>
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-semibold">Create Invoice</h1>
@@ -673,6 +677,7 @@ export default function CreateInvoice() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+      </DashboardLayout>
+    </ProtectedPage>
   );
 }

@@ -8,6 +8,7 @@ import ParticipantsList from '@/components/ParticipantsList';
 import { Shield, FileText, Users, CheckCircle, ArrowRight, Send, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
+import { ProtectedPage } from '@/components/ProtectedPage';
 
 export default function RoomDetail() {
   const router = useRouter();
@@ -18,19 +19,15 @@ export default function RoomDetail() {
   const room = rooms.find((r) => r.id === id);
   const roomDocuments = documents.filter((d) => d.roomId === id);
 
-  useEffect(() => {
-    if (!user) {
-      router.push('/login');
-    }
-  }, [user, router]);
-
   if (!room || !user) {
     return (
-      <DashboardLayout>
-        <div className="text-center py-12">
-          <p className="text-gray-500">Room not found</p>
-        </div>
-      </DashboardLayout>
+      <ProtectedPage>
+        <DashboardLayout>
+          <div className="text-center py-12">
+            <p className="text-gray-500">Room not found</p>
+          </div>
+        </DashboardLayout>
+      </ProtectedPage>
     );
   }
 
@@ -41,7 +38,8 @@ export default function RoomDetail() {
   const currentStep = roomDocuments.length === 0 ? 2 : allSigned ? 3 : 2;
 
   return (
-    <DashboardLayout>
+    <ProtectedPage>
+      <DashboardLayout>
       <div className="max-w-4xl mx-auto">
         {/* Progress Steps */}
         <div className="mb-8">
@@ -196,6 +194,7 @@ export default function RoomDetail() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+      </DashboardLayout>
+    </ProtectedPage>
   );
 }

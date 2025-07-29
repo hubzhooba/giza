@@ -6,7 +6,12 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import rateLimit from 'express-rate-limit';
 
-dotenv.config();
+// Load environment variables based on NODE_ENV
+if (process.env.NODE_ENV === 'development') {
+  dotenv.config({ path: '.env.development' });
+} else {
+  dotenv.config();
+}
 
 // Allow multiple origins for CORS
 const allowedOrigins = [
@@ -80,7 +85,7 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || process.env.SERVER_PORT || 3001;
+const PORT = process.env.PORT || process.env.SERVER_PORT || 3003;
 
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

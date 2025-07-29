@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
+import { ProtectedPage } from '@/components/ProtectedPage';
 
 interface PaymentScheduleItem {
   id: string;
@@ -32,11 +33,13 @@ export default function InvoiceDetail() {
 
   if (!invoice || !invoiceData) {
     return (
-      <DashboardLayout>
-        <div className="text-center py-12">
-          <p className="text-gray-500">Invoice not found</p>
-        </div>
-      </DashboardLayout>
+      <ProtectedPage>
+        <DashboardLayout>
+          <div className="text-center py-12">
+            <p className="text-gray-500">Invoice not found</p>
+          </div>
+        </DashboardLayout>
+      </ProtectedPage>
     );
   }
 
@@ -108,7 +111,8 @@ export default function InvoiceDetail() {
   };
 
   return (
-    <DashboardLayout>
+    <ProtectedPage>
+      <DashboardLayout>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -408,6 +412,7 @@ export default function InvoiceDetail() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+      </DashboardLayout>
+    </ProtectedPage>
   );
 }

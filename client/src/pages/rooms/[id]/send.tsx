@@ -4,6 +4,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { useStore } from '@/store/useStore';
 import { Check, Send, Copy, Mail, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { ProtectedPage } from '@/components/ProtectedPage';
 
 export default function SendInvoice() {
   const router = useRouter();
@@ -14,19 +15,15 @@ export default function SendInvoice() {
   
   const room = rooms.find((r) => r.id === roomId);
 
-  useEffect(() => {
-    if (!user) {
-      router.push('/login');
-    }
-  }, [user, router]);
-
   if (!room || !user) {
     return (
-      <DashboardLayout>
-        <div className="text-center py-12">
-          <p className="text-gray-500">Room not found</p>
-        </div>
-      </DashboardLayout>
+      <ProtectedPage>
+        <DashboardLayout>
+          <div className="text-center py-12">
+            <p className="text-gray-500">Room not found</p>
+          </div>
+        </DashboardLayout>
+      </ProtectedPage>
     );
   }
 
@@ -64,7 +61,8 @@ export default function SendInvoice() {
   };
 
   return (
-    <DashboardLayout>
+    <ProtectedPage>
+      <DashboardLayout>
       <div className="max-w-4xl mx-auto">
         {/* Progress Steps - All Complete */}
         <div className="mb-8">
@@ -182,6 +180,7 @@ export default function SendInvoice() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+      </DashboardLayout>
+    </ProtectedPage>
   );
 }

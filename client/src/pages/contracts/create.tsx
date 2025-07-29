@@ -13,6 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ArweaveService } from '@/lib/arweave';
 import { EncryptionService } from '@/lib/encryption';
 import { Participant } from '@/types';
+import { ProtectedPage } from '@/components/ProtectedPage';
 
 type ContractStep = 'select' | 'ai-generate' | 'upload' | 'add-fields' | 'review';
 
@@ -228,7 +229,8 @@ Date: _____________                   Date: _____________
   };
 
   return (
-    <DashboardLayout>
+    <ProtectedPage>
+      <DashboardLayout>
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-semibold">Create New Contract</h1>
@@ -514,6 +516,7 @@ Date: _____________                   Date: _____________
           </div>
         )}
       </div>
-    </DashboardLayout>
+      </DashboardLayout>
+    </ProtectedPage>
   );
 }

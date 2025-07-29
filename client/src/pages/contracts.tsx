@@ -3,22 +3,15 @@ import { FileText, Plus, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useStore } from '@/store/useStore';
-import { useEffect } from 'react';
+import { ProtectedPage } from '@/components/ProtectedPage';
 
 export default function Contracts() {
   const router = useRouter();
   const { user, rooms } = useStore();
 
-  useEffect(() => {
-    if (!user) {
-      router.push('/login');
-    }
-  }, [user, router]);
-
-  if (!user) return null;
-
   return (
-    <DashboardLayout>
+    <ProtectedPage>
+      <DashboardLayout>
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-semibold">Contracts</h1>
@@ -81,6 +74,7 @@ export default function Contracts() {
           ))}
         </div>
       )}
-    </DashboardLayout>
+      </DashboardLayout>
+    </ProtectedPage>
   );
 }

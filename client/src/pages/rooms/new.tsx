@@ -7,6 +7,7 @@ import { EncryptionService } from '@/lib/encryption';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, Shield, ArrowRight, FileText, Users } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { ProtectedPage } from '@/components/ProtectedPage';
 
 interface RoomForm {
   name: string;
@@ -88,7 +89,8 @@ export default function NewRoom() {
   };
 
   return (
-    <DashboardLayout>
+    <ProtectedPage>
+      <DashboardLayout>
       <div className="max-w-4xl mx-auto">
         {/* Progress Steps */}
         <div className="mb-8">
@@ -253,6 +255,7 @@ export default function NewRoom() {
           </form>
         </div>
       </div>
-    </DashboardLayout>
+      </DashboardLayout>
+    </ProtectedPage>
   );
 }

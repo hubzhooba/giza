@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/DashboardLayout';
-import { AuthGuard } from '@/components/AuthGuard';
+import { ProtectedPage } from '@/components/ProtectedPage';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -19,14 +19,6 @@ export default function Dashboard() {
     sendInvoice: false,
     getInvoicePaid: false,
   });
-
-  useEffect(() => {
-    if (!user) {
-      router.push('/login');
-    }
-  }, [user, router]);
-
-  if (!user) return null;
 
   const stats = {
     receivedThisMonth: 0,
@@ -74,12 +66,12 @@ export default function Dashboard() {
   ];
 
   return (
-    <AuthGuard>
+    <ProtectedPage>
       <DashboardLayout>
       {/* Welcome Section */}
       <div className="mb-8">
         <h1 className="text-3xl font-normal">
-          👋 Hey <span className="font-semibold">{user.name}</span>
+          👋 Hey <span className="font-semibold">{user?.name || 'there'}</span>
         </h1>
       </div>
 
@@ -199,6 +191,6 @@ export default function Dashboard() {
         </div>
       </div>
       </DashboardLayout>
-    </AuthGuard>
+    </ProtectedPage>
   );
 }
