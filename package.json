@@ -1,0 +1,27 @@
+{
+  "name": "freelance-contract-platform",
+  "version": "1.0.0",
+  "description": "Secure contract signing and payment platform for freelancers",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm run dev --workspace=server",
+    "dev:client": "npm run dev --workspace=client",
+    "build": "npm run build --workspaces",
+    "build:client": "npm run build --workspace=client",
+    "build:server": "npm run build --workspace=server",
+    "start": "npm run start --workspace=server",
+    "start:railway": "cd server && npm start",
+    "start:client": "npm run start --workspace=client",
+    "start:server": "npm run start --workspace=server",
+    "lint": "npm run lint --workspaces --if-present",
+    "clean": "rm -rf node_modules client/node_modules server/node_modules client/.next server/dist"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

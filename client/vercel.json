@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://securecontract-production.up.railway.app",
+    "NEXT_PUBLIC_SUPABASE_URL": "https://mcgezqqfraydhgmseevl.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jZ2V6cXFmcmF5ZGhnbXNlZXZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM2OTc3OTMsImV4cCI6MjA2OTI3Mzc5M30.6GwDnWTzxTT0zNhDHI7gL8bNawMDhaRLVbQ32gvaztU"
+  }
+}
