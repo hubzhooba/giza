@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useStore } from '@/store/useStore';
 import Link from 'next/link';
-import { Shield, FileSignature, DollarSign, Users } from 'lucide-react';
+import { Tent, FileSignature, DollarSign, Users } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function Home() {
@@ -132,16 +132,20 @@ export default function Home() {
       <main className="container mx-auto px-4 py-16">
         <div className="text-center mb-16">
           <h2 className="text-5xl font-bold text-gray-900 mb-6">
-            Secure Contracts & Payments for Freelancers
+            One Tent. Complete Workflow.
           </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Create legally binding contracts, get them signed securely, and receive payments
-            through blockchain-powered escrow. Built for freelancers who value security and
-            professionalism.
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+            Create secure, end-to-end encrypted tents for your business contracts. 
+            Invite clients, sign documents, and handle payments - all in one protected space.
           </p>
-          <Link href="/signup" className="btn-primary mt-8 inline-block text-lg px-8 py-3">
-            Start Free Trial
-          </Link>
+          <div className="flex items-center justify-center space-x-4">
+            <Link href="/signup" className="btn-primary text-lg px-8 py-3">
+              Get Started Free
+            </Link>
+            <Link href="/demo" className="btn-secondary text-lg px-8 py-3">
+              See How It Works
+            </Link>
+          </div>
         </div>
 
         {/* Live Stats Section */}
@@ -152,7 +156,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white rounded-xl shadow-lg p-6 text-center transform hover:scale-105 transition-transform">
               <div className="mb-2">
-                <Shield className="w-10 h-10 text-primary-600 mx-auto" />
+                <Tent className="w-10 h-10 text-primary-600 mx-auto" />
               </div>
               <div className="text-3xl font-bold text-gray-900 mb-1">
                 {loading ? (
@@ -194,36 +198,67 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mt-20">
-          <div className="card text-center">
-            <Shield className="w-12 h-12 text-primary-600 mx-auto mb-4" />
+        {/* How It Works */}
+        <div className="mt-20 mb-16">
+          <h3 className="text-3xl font-semibold text-center text-gray-900 mb-12">
+            Simple 3-Step Process
+          </h3>
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl font-bold text-primary-600">1</span>
+              </div>
+              <h4 className="text-xl font-semibold mb-3">Create Tent</h4>
+              <p className="text-gray-600">
+                Set up a secure, encrypted space and invite your client via a simple link
+              </p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl font-bold text-primary-600">2</span>
+              </div>
+              <h4 className="text-xl font-semibold mb-3">Sign Contract</h4>
+              <p className="text-gray-600">
+                Upload PDFs, add signature fields, and both parties sign digitally
+              </p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl font-bold text-primary-600">3</span>
+              </div>
+              <h4 className="text-xl font-semibold mb-3">Get Paid</h4>
+              <p className="text-gray-600">
+                Set payment terms and receive funds securely through the platform
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Key Features */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-20 max-w-5xl mx-auto">
+          <div className="card">
+            <Tent className="w-10 h-10 text-primary-600 mb-4" />
             <h3 className="text-lg font-semibold mb-2">End-to-End Encryption</h3>
-            <p className="text-gray-600">
-              Your contracts and communications are protected with military-grade encryption
+            <p className="text-gray-600 text-sm">
+              Every tent is protected with military-grade encryption. Only invited parties can access.
             </p>
           </div>
           
-          <div className="card text-center">
-            <FileSignature className="w-12 h-12 text-primary-600 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Digital Signatures</h3>
-            <p className="text-gray-600">
-              Legally binding signatures stored permanently on the Arweave blockchain
+          <div className="card">
+            <FileSignature className="w-10 h-10 text-primary-600 mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Legally Binding</h3>
+            <p className="text-gray-600 text-sm">
+              Digital signatures are legally recognized and permanently stored on blockchain.
             </p>
           </div>
           
-          <div className="card text-center">
-            <DollarSign className="w-12 h-12 text-primary-600 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Crypto Payments</h3>
-            <p className="text-gray-600">
-              Accept payments in ETH, USDC, SOL, and other major cryptocurrencies
-            </p>
-          </div>
-          
-          <div className="card text-center">
-            <Users className="w-12 h-12 text-primary-600 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Smart Escrow</h3>
-            <p className="text-gray-600">
-              Milestone-based payments released automatically upon work completion
+          <div className="card">
+            <DollarSign className="w-10 h-10 text-primary-600 mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Secure Payments</h3>
+            <p className="text-gray-600 text-sm">
+              Accept crypto or fiat payments with built-in escrow protection.
             </p>
           </div>
         </div>

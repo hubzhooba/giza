@@ -71,11 +71,13 @@ export const useStore = create<AppState>()(
       addDocument: async (document) => {
         try {
           // Save to Supabase first
+          console.log('Saving document to database:', document);
           await DatabaseService.saveDocument(document);
           set((state) => ({ documents: [...state.documents, document] }));
+          console.log('Document saved successfully');
         } catch (error) {
           toast.error('Failed to save document');
-          console.error(error);
+          console.error('Error saving document:', error);
         }
       },
       updateDocument: async (documentId, updates) => {

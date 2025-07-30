@@ -41,7 +41,7 @@ export default function Signup() {
         options: {
           data: {
             name: data.name,
-            publicKey,
+            public_key: publicKey, // Changed from publicKey to public_key
           },
         },
       });
@@ -49,6 +49,23 @@ export default function Signup() {
       if (authError) throw authError;
 
       if (authData.user) {
+        // Manually create/update profile since trigger might be failing
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: authData.user.id,
+            email: authData.user.email,
+            full_name: data.name,
+            public_key: publicKey,
+          })
+          .select()
+          .single();
+        
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          // Continue anyway - profile will be created later
+        }
+        
         setUser({
           id: authData.user.id,
           email: authData.user.email!,

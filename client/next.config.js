@@ -1,7 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  webpack: (config) => {
+  swcMinify: true,
+  webpack: (config, { isServer }) => {
+    // Disable webpack cache to avoid module not found errors
+    config.cache = false;
+    
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,

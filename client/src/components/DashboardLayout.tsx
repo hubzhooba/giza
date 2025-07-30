@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import { useStore } from '@/store/useStore';
 import { 
   Home, FileText, DollarSign, CreditCard, Users, 
-  Settings, LogOut, Menu, X, ChevronRight, Gift, Shield
+  Settings, LogOut, Menu, X, ChevronRight, Gift, Tent
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import toast from 'react-hot-toast';
@@ -28,12 +28,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const navigation: NavItem[] = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Contracts', href: '/contracts', icon: FileText },
-    { name: 'Invoicing', href: '/invoicing', icon: FileText },
-    { name: 'Payments', href: '/payments', icon: DollarSign },
-    { name: 'Payroll & Expenses', href: '/payroll', icon: CreditCard },
-    { name: 'Clients', href: '/clients', icon: Users },
-    { name: 'Settings', href: '/settings', icon: Settings },
+    { name: 'My Tents', href: '/tents', icon: Tent },
   ];
 
   const handleLogout = async () => {
@@ -56,7 +51,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex items-center justify-between h-16 px-4 border-b border-white/20">
             <Link href="/dashboard" className="flex items-center space-x-2">
               <div className="relative">
-                <Shield className="w-8 h-8 text-primary-600" />
+                <Tent className="w-8 h-8 text-primary-600" />
                 <div className="absolute inset-0 w-8 h-8 bg-primary-600/20 blur-xl"></div>
               </div>
               <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">SecureContract</span>
@@ -73,7 +68,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <nav className="flex-1 px-2 py-4 space-y-1">
             {navigation.map((item) => {
               const Icon = item.icon;
-              const isActive = router.pathname === item.href;
+              const isActive = item.href === '/tents' 
+                ? router.pathname.startsWith('/tents')
+                : router.pathname === item.href;
               
               return (
                 <Link

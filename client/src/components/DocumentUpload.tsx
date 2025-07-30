@@ -65,6 +65,7 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
         id: uuidv4(),
         roomId,
         name: file.name,
+        type: 'contract' as const,
         encryptedContent: JSON.stringify({ encrypted, nonce }),
         fields: JSON.stringify(fields), // Store field definitions
         signatures: [],

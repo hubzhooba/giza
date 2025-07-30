@@ -7,7 +7,6 @@ import { supabase } from '@/lib/supabase';
 import { useStore } from '@/store/useStore';
 import { EncryptionService } from '@/lib/encryption';
 import { Eye, EyeOff } from 'lucide-react';
-import { AuthGuard } from '@/components/AuthGuard';
 
 interface LoginForm {
   email: string;
