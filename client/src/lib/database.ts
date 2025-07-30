@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { SecureRoom, Document } from '@/types';
+import { SecureRoom, Document, Participant } from '@/types';
 
 export class DatabaseService {
   // Join a room as the invitee (second party)
@@ -48,11 +48,38 @@ export class DatabaseService {
       throw error;
     }
 
+    // Load participants
+    const participants: Participant[] = [];
+    
+    // Add creator as participant
+    if (data.creator_id) {
+      participants.push({
+        userId: data.creator_id,
+        email: data.creator_email || '',
+        name: data.creator_name || '',
+        role: 'creator',
+        hasJoined: true,
+        joinedAt: new Date(data.created_at),
+      });
+    }
+    
+    // Add invitee if exists
+    if (data.invitee_id) {
+      participants.push({
+        userId: data.invitee_id,
+        email: data.invitee_email || '',
+        name: data.invitee_name || '',
+        role: 'signer',
+        hasJoined: true,
+        joinedAt: data.invitee_joined_at ? new Date(data.invitee_joined_at) : undefined,
+      });
+    }
+
     return {
       id: data.external_id,
       name: data.name,
       creatorId: data.creator_id,
-      participants: [], // Load separately if needed
+      participants,
       encryptionKey: data.encryption_key,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),

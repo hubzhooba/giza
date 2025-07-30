@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import { useStore } from '@/store/useStore';
 import { Tent, Lock, ArrowRight, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -13,6 +14,7 @@ export default function JoinTent() {
   const [loading, setLoading] = useState(false);
   const [tent, setTent] = useState<any>(null);
   const [joined, setJoined] = useState(false);
+  const [loadingTent, setLoadingTent] = useState(true);
 
   useEffect(() => {
     if (id && typeof id === 'string') {
@@ -21,19 +23,30 @@ export default function JoinTent() {
   }, [id]);
 
   const loadTent = async (tentId: string) => {
+    console.log('Loading tent:', tentId);
+    setLoadingTent(true);
+    
     try {
       const room = await DatabaseService.loadRoom(tentId);
+      console.log('Loaded room:', room);
+      
       if (room) {
         setTent(room);
         
         // Check if user is already a participant
         if (user && room.participants.some((p: any) => p.userId === user.id)) {
+          console.log('User is already a participant');
           setJoined(true);
         }
+      } else {
+        console.error('No tent found with ID:', tentId);
+        toast.error('Tent not found');
       }
     } catch (error) {
       console.error('Error loading tent:', error);
-      toast.error('Tent not found');
+      toast.error('Failed to load tent. Please try again.');
+    } finally {
+      setLoadingTent(false);
     }
   };
 
@@ -68,12 +81,30 @@ export default function JoinTent() {
     }
   };
 
+  if (loadingTent) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Tent className="w-16 h-16 text-gray-300 mx-auto mb-4 animate-pulse" />
+          <p className="text-gray-500">Loading tent...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!tent) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Tent className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">Loading tent...</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Tent Not Found</h2>
+          <p className="text-gray-500 mb-4">This invite link may be invalid or expired.</p>
+          <Link
+            href="/"
+            className="text-primary-600 hover:text-primary-700"
+          >
+            Go to Home
+          </Link>
         </div>
       </div>
     );
