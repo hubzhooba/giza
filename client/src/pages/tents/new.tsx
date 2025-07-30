@@ -39,10 +39,10 @@ export default function NewTent() {
         name: data.name,
         creatorId: user.id,
         participants: [{
-          id: user.id,
+          userId: user.id,
           email: user.email,
           name: user.name,
-          role: 'owner' as const,
+          role: 'creator' as const,
           hasJoined: true,
           joinedAt: new Date(),
         }],

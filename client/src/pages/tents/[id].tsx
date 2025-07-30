@@ -272,10 +272,10 @@ export default function TentDetail() {
               <h3 className="font-medium text-gray-900 mb-2">Participants</h3>
               <div className="space-y-2">
                 {tent.participants.map((participant) => (
-                  <div key={participant.id} className="flex items-center text-sm">
+                  <div key={participant.userId} className="flex items-center text-sm">
                     <div className="w-2 h-2 bg-green-500 rounded-full mr-2" />
                     <span className="text-gray-600">{participant.name || participant.email}</span>
-                    {participant.id === tent.creatorId && (
+                    {participant.userId === tent.creatorId && (
                       <span className="ml-2 text-xs text-gray-500">(Owner)</span>
                     )}
                   </div>

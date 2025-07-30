@@ -27,7 +27,7 @@ export default function JoinTent() {
         setTent(room);
         
         // Check if user is already a participant
-        if (user && room.participants.some((p: any) => p.id === user.id)) {
+        if (user && room.participants.some((p: any) => p.userId === user.id)) {
           setJoined(true);
         }
       }
