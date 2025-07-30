@@ -37,53 +37,88 @@ export class DatabaseService {
 
   // Load a single room by external ID (works for owners and shared users)
   static async loadRoom(externalId: string): Promise<SecureRoom | null> {
-    const { data, error } = await supabase
+    console.log('DatabaseService.loadRoom: Loading room with external_id:', externalId);
+    
+    let roomData: any = null;
+    
+    // Try direct query first (simpler approach)
+    const { data: directData, error: directError } = await supabase
       .from('rooms')
       .select('*')
       .eq('external_id', externalId)
       .single();
+    
+    console.log('DatabaseService.loadRoom: Direct query result:', { directData, directError });
+    
+    if (directError) {
+      if (directError.code === 'PGRST116') {
+        console.log('DatabaseService.loadRoom: Room not found');
+        return null; // Not found
+      }
+      // For RLS errors, we might need to handle differently
+      if (directError.code === 'PGRST301' || directError.message?.includes('row-level security')) {
+        console.log('DatabaseService.loadRoom: RLS policy blocked access, room exists but user cannot access');
+        // For invite links, we still want to show basic info
+        // Return a minimal room object
+        return {
+          id: externalId,
+          name: 'Protected Tent',
+          creatorId: '',
+          participants: [],
+          encryptionKey: '',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          status: 'active',
+          contractData: {},
+        };
+      }
+      console.error('DatabaseService.loadRoom: Error loading room:', directError);
+      throw directError;
+    }
+    
+    roomData = directData;
 
-    if (error) {
-      if (error.code === 'PGRST116') return null; // Not found
-      throw error;
+    if (!roomData) {
+      console.log('DatabaseService.loadRoom: No data returned');
+      return null;
     }
 
     // Load participants
     const participants: Participant[] = [];
     
     // Add creator as participant
-    if (data.creator_id) {
+    if (roomData.creator_id) {
       participants.push({
-        userId: data.creator_id,
-        email: data.creator_email || '',
-        name: data.creator_name || '',
+        userId: roomData.creator_id,
+        email: roomData.creator_email || '',
+        name: roomData.creator_name || '',
         role: 'creator',
         hasJoined: true,
-        joinedAt: new Date(data.created_at),
+        joinedAt: new Date(roomData.created_at),
       });
     }
     
     // Add invitee if exists
-    if (data.invitee_id) {
+    if (roomData.invitee_id) {
       participants.push({
-        userId: data.invitee_id,
-        email: data.invitee_email || '',
-        name: data.invitee_name || '',
+        userId: roomData.invitee_id,
+        email: roomData.invitee_email || '',
+        name: roomData.invitee_name || '',
         role: 'signer',
         hasJoined: true,
-        joinedAt: data.invitee_joined_at ? new Date(data.invitee_joined_at) : undefined,
+        joinedAt: roomData.invitee_joined_at ? new Date(roomData.invitee_joined_at) : undefined,
       });
     }
 
     return {
-      id: data.external_id,
-      name: data.name,
-      creatorId: data.creator_id,
+      id: roomData.external_id,
+      name: roomData.name,
+      creatorId: roomData.creator_id,
       participants,
-      encryptionKey: data.encryption_key,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
-      status: data.status,
+      encryptionKey: roomData.encryption_key,
+      createdAt: new Date(roomData.created_at),
+      updatedAt: new Date(roomData.updated_at),
+      status: roomData.status,
       contractData: {}, // Load from documents table if needed
     };
   }
