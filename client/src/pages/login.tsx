@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useStore } from '@/store/useStore';
 import { EncryptionService } from '@/lib/encryption';
 import { Eye, EyeOff } from 'lucide-react';
+import { useAuthContext } from '@/contexts/AuthContext';
 
 interface LoginForm {
   email: string;
@@ -18,7 +19,8 @@ export default function Login() {
   const { redirect } = router.query;
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { setUser, setPrivateKey } = useStore();
+  const { user, setUser, setPrivateKey } = useStore();
+  const { isAuthenticated, isLoading: authLoading } = useAuthContext();
   const encryption = EncryptionService.getInstance();
   
   const {
@@ -26,6 +28,15 @@ export default function Login() {
     handleSubmit,
     formState: { errors },
   } = useForm<LoginForm>();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && (isAuthenticated || user)) {
+      const redirectUrl = redirect ? decodeURIComponent(redirect as string) : '/dashboard';
+      console.log('User already authenticated, redirecting to:', redirectUrl);
+      router.push(redirectUrl);
+    }
+  }, [isAuthenticated, user, authLoading, redirect, router]);
 
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
@@ -102,12 +113,15 @@ export default function Login() {
         
         toast.success('Welcome back!');
         
-        // Small delay to ensure state is set
-        setTimeout(() => {
-          // Redirect to intended page or dashboard
-          const redirectUrl = redirect ? decodeURIComponent(redirect as string) : '/dashboard';
-          router.push(redirectUrl);
-        }, 100);
+        // Clear loading state before redirect
+        setLoading(false);
+        
+        // Redirect to intended page or dashboard
+        const redirectUrl = redirect ? decodeURIComponent(redirect as string) : '/dashboard';
+        console.log('Login successful, redirecting to:', redirectUrl);
+        
+        // Use replace to prevent back button issues
+        router.replace(redirectUrl);
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -117,6 +131,23 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  // Show loading while checking auth status
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render login form if already authenticated
+  if (isAuthenticated || user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
