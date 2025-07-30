@@ -186,10 +186,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     try {
       // Clear all local storage except essential items
-      const essentialKeys = [];
+      const essentialKeys: string[] = [];
       const keys = Object.keys(localStorage);
       keys.forEach(key => {
-        if (!essentialKeys.some(essential => key.includes(essential))) {
+        if (!essentialKeys.some((essential: string) => key.includes(essential))) {
           localStorage.removeItem(key);
         }
       });
