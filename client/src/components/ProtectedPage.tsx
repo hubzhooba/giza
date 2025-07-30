@@ -10,18 +10,20 @@ interface ProtectedPageProps {
 
 export function ProtectedPage({ children }: ProtectedPageProps) {
   const router = useRouter();
-  const { isLoading, isAuthenticated } = useAuthContext();
+  const { isLoading, isAuthenticated, session } = useAuthContext();
   const { user } = useStore();
 
   useEffect(() => {
-    console.log('ProtectedPage state:', { isLoading, isAuthenticated, hasUser: !!user });
+    console.log('ProtectedPage state:', { isLoading, isAuthenticated, hasUser: !!user, hasSession: !!session });
     
-    // Only redirect if we're sure the user is not authenticated
-    if (!isLoading && !isAuthenticated && !user) {
-      console.log('ProtectedPage: Not authenticated, redirecting to login');
-      router.push(`/login?redirect=${encodeURIComponent(router.asPath)}`);
+    // Only redirect if we're absolutely sure the user is not authenticated
+    // Check session as the ultimate source of truth
+    if (!isLoading && !session && !isAuthenticated) {
+      console.log('ProtectedPage: No session, redirecting to login');
+      const redirect = router.asPath !== '/' ? `?redirect=${encodeURIComponent(router.asPath)}` : '';
+      router.push(`/login${redirect}`);
     }
-  }, [isLoading, isAuthenticated, user, router]);
+  }, [isLoading, isAuthenticated, session, router]);
 
   // Show loading only while auth context is initializing
   if (isLoading) {
@@ -32,9 +34,9 @@ export function ProtectedPage({ children }: ProtectedPageProps) {
     );
   }
 
-  // If we have authentication or a user, show the content
-  // This handles cases where auth state might be slightly out of sync
-  if (isAuthenticated || user) {
+  // If we have a session, show the content
+  // Session is the most reliable indicator of authentication
+  if (session || isAuthenticated) {
     return <>{children}</>;
   }
 

@@ -5,7 +5,6 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { useSessionPersistence } from '@/hooks/useSessionPersistence';
 import { useEffect } from 'react';
-import Script from 'next/script';
 
 const queryClient = new QueryClient({
   defaultOptions: {

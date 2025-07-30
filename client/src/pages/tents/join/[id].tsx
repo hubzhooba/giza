@@ -38,9 +38,11 @@ export default function JoinTent() {
         setTent(room);
         
         // Check if user is already a participant
-        if (user && room.participants.some((p: any) => p.userId === user.id)) {
-          console.log('User is already a participant');
-          setJoined(true);
+        if (user) {
+          if (room.creatorId === user.id || room.inviteeId === user.id) {
+            console.log('User is already a participant');
+            setJoined(true);
+          }
         }
       } else {
         console.error('No tent found with ID:', tentId);
@@ -70,21 +72,32 @@ export default function JoinTent() {
     setLoading(true);
     try {
       // Join the room in database
-      await DatabaseService.joinRoom(tent.id, user.id);
+      const result = await DatabaseService.joinRoom(tent.id, user.id);
+      console.log('Join room result:', result);
       
-      // Update local state
-      setCurrentRoom(tent);
+      // Reload the tent to get updated participant list
+      const updatedRoom = await DatabaseService.loadRoom(tent.id);
+      if (updatedRoom) {
+        setTent(updatedRoom);
+        setCurrentRoom(updatedRoom);
+      }
+      
       setJoined(true);
       
       toast.success('Successfully joined the tent!');
+      
+      // Reload user's rooms list
+      const { loadRooms } = useStore.getState();
+      await loadRooms();
       
       // Redirect to tent page
       setTimeout(() => {
         router.push(`/tents/${tent.id}`);
       }, 1000);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error joining tent:', error);
-      toast.error('Failed to join tent');
+      const errorMessage = error?.message || 'Failed to join tent';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

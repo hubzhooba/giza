@@ -42,7 +42,8 @@ export default function TentDetail() {
   }
 
   const isOwner = tent.creatorId === user.id;
-  const hasInvitee = tent.participants.length > 1;
+  // Check if tent has an invitee (second participant)
+  const hasInvitee = tent.inviteeId !== undefined && tent.inviteeId !== null;
   const allSigned = tentDocuments.some(doc => 
     doc.signatures.length >= 2 || doc.status === 'signed'
   );

@@ -1,26 +1,32 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '@/lib/supabase';
 import { useStore } from '@/store/useStore';
 import { User } from '@/types';
+import { Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
+  session: Session | null;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   isAuthenticated: false,
+  session: null,
+  signOut: async () => {},
 });
 
 export const useAuthContext = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { setUser, setPrivateKey } = useStore();
+  const { setUser, setPrivateKey, clearStore } = useStore();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
     // Check initial session
@@ -92,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
           setIsAuthenticated(true);
+          setSession(session);
           
           // Load rooms and documents after setting user
           const loadUserData = async () => {
@@ -161,10 +168,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
           setIsAuthenticated(true);
+          setSession(session);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setPrivateKey(null);
           setIsAuthenticated(false);
+          setSession(null);
         }
       }
     );
@@ -174,8 +183,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [setUser, setPrivateKey]);
 
+  const signOut = useCallback(async () => {
+    try {
+      // Clear all local storage except essential items
+      const essentialKeys = [];
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (!essentialKeys.some(essential => key.includes(essential))) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Clear session storage
+      sessionStorage.clear();
+      
+      // Clear all caches
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+      }
+      
+      // Clear store
+      clearStore();
+      
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      
+      // Reset state
+      setIsAuthenticated(false);
+      setSession(null);
+      
+      // Redirect to home
+      router.push('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  }, [clearStore, router]);
+
   return (
-    <AuthContext.Provider value={{ isLoading, isAuthenticated }}>
+    <AuthContext.Provider value={{ isLoading, isAuthenticated, session, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -23,6 +23,7 @@ interface AppState {
   loadRooms: () => Promise<void>;
   loadDocuments: () => Promise<void>;
   logout: () => void;
+  clearStore: () => void;
 }
 
 export const useStore = create<AppState>()(
@@ -120,6 +121,17 @@ export const useStore = create<AppState>()(
         }
         // Clear Supabase auth storage
         localStorage.removeItem('supabase-auth-token');
+        set({
+          user: null,
+          currentRoom: null,
+          privateKey: null,
+          rooms: [],
+          documents: [],
+        });
+      },
+      clearStore: () => {
+        // Clear all zustand persisted data
+        localStorage.removeItem('freelance-platform-storage');
         set({
           user: null,
           currentRoom: null,

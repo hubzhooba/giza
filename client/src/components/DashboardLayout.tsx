@@ -6,7 +6,7 @@ import {
   Home, FileText, DollarSign, CreditCard, Users, 
   Settings, LogOut, Menu, X, ChevronRight, Gift, Tent
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { useAuthContext } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import LiquidBubbles from './LiquidBubbles';
 
@@ -23,7 +23,8 @@ interface NavItem {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
-  const { user, logout } = useStore();
+  const { user } = useStore();
+  const { signOut } = useAuthContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const navigation: NavItem[] = [
@@ -32,10 +33,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   ];
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    logout();
+    await signOut();
     toast.success('Logged out successfully');
-    router.push('/');
   };
 
   return (
