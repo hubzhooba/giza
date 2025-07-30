@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useStore } from '@/store/useStore';
@@ -12,28 +12,19 @@ export function ProtectedPage({ children }: ProtectedPageProps) {
   const router = useRouter();
   const { isLoading, isAuthenticated } = useAuthContext();
   const { user } = useStore();
-  const [shouldRedirect, setShouldRedirect] = useState(false);
 
   useEffect(() => {
-    // Give auth context time to initialize
-    const timer = setTimeout(() => {
-      if (!isLoading && !isAuthenticated && !user) {
-        console.log('ProtectedPage: Not authenticated, redirecting to login');
-        setShouldRedirect(true);
-      }
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, [isLoading, isAuthenticated, user]);
-
-  useEffect(() => {
-    if (shouldRedirect) {
+    console.log('ProtectedPage state:', { isLoading, isAuthenticated, hasUser: !!user });
+    
+    // Only redirect if we're sure the user is not authenticated
+    if (!isLoading && !isAuthenticated && !user) {
+      console.log('ProtectedPage: Not authenticated, redirecting to login');
       router.push(`/login?redirect=${encodeURIComponent(router.asPath)}`);
     }
-  }, [shouldRedirect, router]);
+  }, [isLoading, isAuthenticated, user, router]);
 
-  // Show loading state while auth is initializing
-  if (isLoading || (!isAuthenticated && !shouldRedirect)) {
+  // Show loading only while auth context is initializing
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader className="w-8 h-8 animate-spin text-primary-600" />
@@ -41,12 +32,13 @@ export function ProtectedPage({ children }: ProtectedPageProps) {
     );
   }
 
-  // If authenticated and have user, show content
-  if (isAuthenticated && user) {
+  // If we have authentication or a user, show the content
+  // This handles cases where auth state might be slightly out of sync
+  if (isAuthenticated || user) {
     return <>{children}</>;
   }
 
-  // Otherwise show loading
+  // If not loading and not authenticated, show loading briefly while redirect happens
   return (
     <div className="min-h-screen flex items-center justify-center">
       <Loader className="w-8 h-8 animate-spin text-primary-600" />
