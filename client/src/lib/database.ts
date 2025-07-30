@@ -55,38 +55,38 @@ export class DatabaseService {
         const participants: Participant[] = [];
         
         // Add creator as participant
-        if (rpcData.creator_id) {
+        if ((rpcData as any).creator_id) {
           participants.push({
-            userId: rpcData.creator_id,
-            email: rpcData.creator_email || '',
-            name: rpcData.creator_name || '',
+            userId: (rpcData as any).creator_id,
+            email: (rpcData as any).creator_email || '',
+            name: (rpcData as any).creator_name || '',
             role: 'creator',
             hasJoined: true,
-            joinedAt: new Date(rpcData.created_at),
+            joinedAt: new Date((rpcData as any).created_at),
           });
         }
         
         // Add invitee if exists
-        if (rpcData.invitee_id) {
+        if ((rpcData as any).invitee_id) {
           participants.push({
-            userId: rpcData.invitee_id,
-            email: rpcData.invitee_email || '',
-            name: rpcData.invitee_name || '',
+            userId: (rpcData as any).invitee_id,
+            email: (rpcData as any).invitee_email || '',
+            name: (rpcData as any).invitee_name || '',
             role: 'signer',
             hasJoined: true,
-            joinedAt: rpcData.invitee_joined_at ? new Date(rpcData.invitee_joined_at) : undefined,
+            joinedAt: (rpcData as any).invitee_joined_at ? new Date((rpcData as any).invitee_joined_at) : undefined,
           });
         }
 
         return {
-          id: rpcData.external_id,
-          name: rpcData.name,
-          creatorId: rpcData.creator_id,
+          id: (rpcData as any).external_id,
+          name: (rpcData as any).name,
+          creatorId: (rpcData as any).creator_id,
           participants,
-          encryptionKey: rpcData.encryption_key,
-          createdAt: new Date(rpcData.created_at),
-          updatedAt: new Date(rpcData.updated_at),
-          status: rpcData.status,
+          encryptionKey: (rpcData as any).encryption_key,
+          createdAt: new Date((rpcData as any).created_at),
+          updatedAt: new Date((rpcData as any).updated_at),
+          status: (rpcData as any).status,
           contractData: {},
         };
       }
