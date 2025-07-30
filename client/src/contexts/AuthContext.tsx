@@ -93,16 +93,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           setIsAuthenticated(true);
           
-          // Load rooms and documents in background
-          setTimeout(async () => {
+          // Load rooms and documents after setting user
+          const loadUserData = async () => {
             try {
               const { loadRooms, loadDocuments } = useStore.getState();
+              console.log('AuthProvider: Loading user data...');
               if (loadRooms) await loadRooms();
               if (loadDocuments) await loadDocuments();
+              console.log('AuthProvider: User data loaded');
             } catch (err) {
-              console.error('Error loading user data:', err);
+              console.error('AuthProvider: Error loading user data:', err);
             }
-          }, 0);
+          };
+          
+          // Use Promise to ensure it runs after state updates
+          Promise.resolve().then(loadUserData);
         } else {
           console.log('AuthProvider: No session found');
           setIsAuthenticated(false);
@@ -124,6 +129,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Skip INITIAL_SESSION as we handle it above
         if (event === 'INITIAL_SESSION') return;
+        
+        // Skip SIGNED_OUT if we still have a valid session
+        if (event === 'SIGNED_OUT' && session) {
+          console.log('AuthProvider: Ignoring SIGNED_OUT event with valid session');
+          return;
+        }
         
         if (event === 'SIGNED_IN' && session?.user) {
           // Load profile

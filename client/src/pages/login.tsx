@@ -100,8 +100,8 @@ export default function Login() {
         setUser({
           id: authData.user.id,
           email: authData.user.email!,
-          name: profile?.name || authData.user.email || '',
-          publicKey: profile?.publicKey || '',
+          name: profile?.name || profile?.full_name || authData.user.email || '',
+          publicKey: profile?.public_key || '',
           createdAt: new Date(authData.user.created_at),
           updatedAt: new Date(),
         });
@@ -110,6 +110,16 @@ export default function Login() {
         
         // Store private key in localStorage for session persistence
         localStorage.setItem(`pk_${authData.user.id}`, privateKey);
+        
+        // Load user data (rooms and documents)
+        try {
+          const { loadRooms, loadDocuments } = useStore.getState();
+          await loadRooms();
+          await loadDocuments();
+          console.log('User data loaded successfully');
+        } catch (err) {
+          console.error('Error loading user data:', err);
+        }
         
         toast.success('Welcome back!');
         
