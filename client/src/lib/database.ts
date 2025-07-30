@@ -41,42 +41,51 @@ export class DatabaseService {
     
     let roomData: any = null;
     
-    // Try direct query first (simpler approach)
-    const { data: directData, error: directError } = await supabase
-      .from('rooms')
-      .select('*')
-      .eq('external_id', externalId)
-      .single();
+    // Check if user is authenticated
+    const { data: { user } } = await supabase.auth.getUser();
     
-    console.log('DatabaseService.loadRoom: Direct query result:', { directData, directError });
-    
-    if (directError) {
-      if (directError.code === 'PGRST116') {
-        console.log('DatabaseService.loadRoom: Room not found');
-        return null; // Not found
+    if (!user) {
+      // For unauthenticated users (invite links), use RPC function
+      console.log('DatabaseService.loadRoom: User not authenticated, using RPC function');
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('get_room_for_invite', {
+          room_external_id: externalId
+        })
+        .single();
+      
+      console.log('DatabaseService.loadRoom: RPC result:', { rpcData, rpcError });
+      
+      if (rpcError) {
+        if (rpcError.code === 'PGRST116') {
+          console.log('DatabaseService.loadRoom: Room not found via RPC');
+          return null;
+        }
+        console.error('DatabaseService.loadRoom: RPC error:', rpcError);
+        return null;
       }
-      // For RLS errors, we might need to handle differently
-      if (directError.code === 'PGRST301' || directError.message?.includes('row-level security')) {
-        console.log('DatabaseService.loadRoom: RLS policy blocked access, room exists but user cannot access');
-        // For invite links, we still want to show basic info
-        // Return a minimal room object
-        return {
-          id: externalId,
-          name: 'Protected Tent',
-          creatorId: '',
-          participants: [],
-          encryptionKey: '',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          status: 'active',
-          contractData: {},
-        };
+      
+      roomData = rpcData;
+    } else {
+      // For authenticated users, try direct query
+      const { data: directData, error: directError } = await supabase
+        .from('rooms')
+        .select('*')
+        .eq('external_id', externalId)
+        .single();
+      
+      console.log('DatabaseService.loadRoom: Direct query result:', { directData, directError });
+      
+      if (directError) {
+        if (directError.code === 'PGRST116') {
+          console.log('DatabaseService.loadRoom: Room not found');
+          return null; // Not found
+        }
+        console.error('DatabaseService.loadRoom: Error loading room:', directError);
+        throw directError;
       }
-      console.error('DatabaseService.loadRoom: Error loading room:', directError);
-      throw directError;
+      
+      roomData = directData;
     }
-    
-    roomData = directData;
 
     if (!roomData) {
       console.log('DatabaseService.loadRoom: No data returned');

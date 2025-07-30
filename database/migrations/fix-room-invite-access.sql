@@ -1,5 +1,5 @@
 -- Create a function to get room data for invite links (accessible by anyone with the ID)
-CREATE OR REPLACE FUNCTION get_room_for_invite(room_external_id UUID)
+CREATE OR REPLACE FUNCTION get_room_for_invite(room_external_id TEXT)
 RETURNS TABLE (
   id UUID,
   external_id UUID,
@@ -38,23 +38,22 @@ BEGIN
   FROM rooms r
   LEFT JOIN profiles cp ON r.creator_id = cp.id
   LEFT JOIN profiles ip ON r.invitee_id = ip.id
-  WHERE r.external_id = room_external_id;
+  WHERE r.external_id = room_external_id::UUID;
 END;
 $$ LANGUAGE plpgsql;
 
 -- Grant execute permission to authenticated and anonymous users
-GRANT EXECUTE ON FUNCTION get_room_for_invite(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION get_room_for_invite(UUID) TO anon;
+GRANT EXECUTE ON FUNCTION get_room_for_invite(TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_room_for_invite(TEXT) TO anon;
 
 -- Update the rooms RLS policy to be more permissive for reading
 DROP POLICY IF EXISTS "Users can view rooms they participate in" ON rooms;
 
-CREATE POLICY "Users can view rooms they participate in or are invited to"
+CREATE POLICY "Users can view rooms they participate in"
 ON rooms FOR SELECT
 USING (
   auth.uid() = creator_id 
   OR auth.uid() = invitee_id
-  OR external_id IN (
-    SELECT room_external_id FROM get_room_for_invite(external_id)
-  )
 );
+
+-- For anonymous users accessing invite links, they should use the RPC function
