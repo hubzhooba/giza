@@ -39,97 +39,123 @@ export class DatabaseService {
   static async loadRoom(externalId: string): Promise<SecureRoom | null> {
     console.log('DatabaseService.loadRoom: Loading room with external_id:', externalId);
     
-    let roomData: any = null;
-    
-    // Check if user is authenticated
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      // For unauthenticated users (invite links), use RPC function
-      console.log('DatabaseService.loadRoom: User not authenticated, using RPC function');
+    try {
+      // First try RPC function (works for both authenticated and unauthenticated)
+      console.log('DatabaseService.loadRoom: Trying RPC function');
       const { data: rpcData, error: rpcError } = await supabase
         .rpc('get_room_for_invite', {
           room_external_id: externalId
         })
         .single();
       
-      console.log('DatabaseService.loadRoom: RPC result:', { rpcData, rpcError });
+      console.log('DatabaseService.loadRoom: RPC result:', { data: rpcData, error: rpcError });
       
-      if (rpcError) {
-        if (rpcError.code === 'PGRST116') {
-          console.log('DatabaseService.loadRoom: Room not found via RPC');
-          return null;
+      if (!rpcError && rpcData) {
+        // Successfully loaded via RPC
+        const participants: Participant[] = [];
+        
+        // Add creator as participant
+        if (rpcData.creator_id) {
+          participants.push({
+            userId: rpcData.creator_id,
+            email: rpcData.creator_email || '',
+            name: rpcData.creator_name || '',
+            role: 'creator',
+            hasJoined: true,
+            joinedAt: new Date(rpcData.created_at),
+          });
         }
-        console.error('DatabaseService.loadRoom: RPC error:', rpcError);
+        
+        // Add invitee if exists
+        if (rpcData.invitee_id) {
+          participants.push({
+            userId: rpcData.invitee_id,
+            email: rpcData.invitee_email || '',
+            name: rpcData.invitee_name || '',
+            role: 'signer',
+            hasJoined: true,
+            joinedAt: rpcData.invitee_joined_at ? new Date(rpcData.invitee_joined_at) : undefined,
+          });
+        }
+
+        return {
+          id: rpcData.external_id,
+          name: rpcData.name,
+          creatorId: rpcData.creator_id,
+          participants,
+          encryptionKey: rpcData.encryption_key,
+          createdAt: new Date(rpcData.created_at),
+          updatedAt: new Date(rpcData.updated_at),
+          status: rpcData.status,
+          contractData: {},
+        };
+      }
+      
+      // If RPC failed, check if user is authenticated for fallback
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.log('DatabaseService.loadRoom: RPC failed and user not authenticated');
         return null;
       }
       
-      roomData = rpcData;
-    } else {
-      // For authenticated users, try direct query
+      // Try direct query for authenticated users
+      console.log('DatabaseService.loadRoom: Trying direct query for authenticated user');
       const { data: directData, error: directError } = await supabase
         .from('rooms')
         .select('*')
         .eq('external_id', externalId)
         .single();
       
-      console.log('DatabaseService.loadRoom: Direct query result:', { directData, directError });
+      console.log('DatabaseService.loadRoom: Direct query result:', { data: directData, error: directError });
       
-      if (directError) {
-        if (directError.code === 'PGRST116') {
-          console.log('DatabaseService.loadRoom: Room not found');
-          return null; // Not found
-        }
-        console.error('DatabaseService.loadRoom: Error loading room:', directError);
-        throw directError;
+      if (directError || !directData) {
+        console.log('DatabaseService.loadRoom: No room found');
+        return null;
       }
       
-      roomData = directData;
-    }
+      // Load participants for direct query
+      const participants: Participant[] = [];
+      
+      // Add creator as participant
+      if (directData.creator_id) {
+        participants.push({
+          userId: directData.creator_id,
+          email: directData.creator_email || '',
+          name: directData.creator_name || '',
+          role: 'creator',
+          hasJoined: true,
+          joinedAt: new Date(directData.created_at),
+        });
+      }
+      
+      // Add invitee if exists
+      if (directData.invitee_id) {
+        participants.push({
+          userId: directData.invitee_id,
+          email: directData.invitee_email || '',
+          name: directData.invitee_name || '',
+          role: 'signer',
+          hasJoined: true,
+          joinedAt: directData.invitee_joined_at ? new Date(directData.invitee_joined_at) : undefined,
+        });
+      }
 
-    if (!roomData) {
-      console.log('DatabaseService.loadRoom: No data returned');
+      return {
+        id: directData.external_id,
+        name: directData.name,
+        creatorId: directData.creator_id,
+        participants,
+        encryptionKey: directData.encryption_key,
+        createdAt: new Date(directData.created_at),
+        updatedAt: new Date(directData.updated_at),
+        status: directData.status,
+        contractData: {},
+      };
+    } catch (error) {
+      console.error('DatabaseService.loadRoom: Unexpected error:', error);
       return null;
     }
-
-    // Load participants
-    const participants: Participant[] = [];
-    
-    // Add creator as participant
-    if (roomData.creator_id) {
-      participants.push({
-        userId: roomData.creator_id,
-        email: roomData.creator_email || '',
-        name: roomData.creator_name || '',
-        role: 'creator',
-        hasJoined: true,
-        joinedAt: new Date(roomData.created_at),
-      });
-    }
-    
-    // Add invitee if exists
-    if (roomData.invitee_id) {
-      participants.push({
-        userId: roomData.invitee_id,
-        email: roomData.invitee_email || '',
-        name: roomData.invitee_name || '',
-        role: 'signer',
-        hasJoined: true,
-        joinedAt: roomData.invitee_joined_at ? new Date(roomData.invitee_joined_at) : undefined,
-      });
-    }
-
-    return {
-      id: roomData.external_id,
-      name: roomData.name,
-      creatorId: roomData.creator_id,
-      participants,
-      encryptionKey: roomData.encryption_key,
-      createdAt: new Date(roomData.created_at),
-      updatedAt: new Date(roomData.updated_at),
-      status: roomData.status,
-      contractData: {}, // Load from documents table if needed
-    };
   }
 
   // Load all rooms for the current user (where they are creator OR invitee)

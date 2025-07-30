@@ -15,6 +15,45 @@ const nextConfig = {
     };
     return config;
   },
+  
+  // Add cache headers to prevent stale deployments
+  async headers() {
+    return [
+      {
+        // Apply to all pages
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
+          },
+        ],
+      },
+      {
+        // Allow caching for static assets with hash in filename
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
+  },
+  
+  // Generate unique build ID to force cache busting
+  generateBuildId: async () => {
+    return `build-${Date.now()}`;
+  },
 }
 
 module.exports = nextConfig
