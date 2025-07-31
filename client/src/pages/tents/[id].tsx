@@ -6,7 +6,7 @@ import DocumentUpload from '@/components/DocumentUpload';
 import DocumentViewer from '@/components/DocumentViewer';
 import { 
   Tent, FileText, DollarSign, Check, Copy, Users, 
-  ArrowRight, Clock, Lock, ExternalLink 
+  ArrowRight, Clock, Lock, Hash 
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ProtectedPage } from '@/components/ProtectedPage';
@@ -17,7 +17,7 @@ export default function TentDetail() {
   const router = useRouter();
   const { id } = router.query;
   const { rooms, documents, user, loadDocuments } = useStore();
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
   
   // Load documents when component mounts
   useEffect(() => {
@@ -57,13 +57,12 @@ export default function TentDetail() {
   };
   
   const currentStep = getCurrentStep();
-  const inviteLink = `${window.location.origin}/tents/join/${tent.id}`;
 
-  const copyInviteLink = () => {
-    navigator.clipboard.writeText(inviteLink);
-    setCopiedLink(true);
-    toast.success('Invite link copied!');
-    setTimeout(() => setCopiedLink(false), 3000);
+  const copyTentId = () => {
+    navigator.clipboard.writeText(tent.id);
+    setCopiedId(true);
+    toast.success('Tent ID copied!');
+    setTimeout(() => setCopiedId(false), 3000);
   };
 
   const steps = [
@@ -137,32 +136,40 @@ export default function TentDetail() {
                 <div>
                   <h2 className="text-2xl font-semibold mb-4">Invite Your Client</h2>
                   <p className="text-gray-600 mb-6">
-                    Share this secure link with your client to grant them access to this tent.
+                    Share this tent ID with your client. They can join by entering it in their dashboard.
                   </p>
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Secure Invite Link
+                    Tent ID
                   </label>
                   <div className="flex items-center space-x-3">
-                    <input
-                      type="text"
-                      value={inviteLink}
-                      readOnly
-                      className="flex-1 input bg-white"
-                    />
+                    <div className="flex-1 flex items-center bg-white rounded-lg border border-gray-300 px-4 py-2">
+                      <Hash className="w-5 h-5 text-gray-400 mr-2" />
+                      <input
+                        type="text"
+                        value={tent.id}
+                        readOnly
+                        className="flex-1 bg-transparent outline-none font-mono text-lg"
+                      />
+                    </div>
                     <button
-                      onClick={copyInviteLink}
+                      onClick={copyTentId}
                       className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition"
                     >
-                      {copiedLink ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
-                      {copiedLink ? 'Copied!' : 'Copy'}
+                      {copiedId ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
+                      {copiedId ? 'Copied!' : 'Copy'}
                     </button>
                   </div>
-                  <p className="text-sm text-gray-500 mt-2">
-                    This link will allow your client to join the tent securely.
+                  <p className="text-sm text-gray-500 mt-3">
+                    Your client needs to:
                   </p>
+                  <ol className="text-sm text-gray-500 mt-2 list-decimal list-inside space-y-1">
+                    <li>Log into their account</li>
+                    <li>Click "Join a Tent" on their dashboard</li>
+                    <li>Enter this tent ID</li>
+                  </ol>
                 </div>
 
                 <div className="flex items-center justify-center py-8">

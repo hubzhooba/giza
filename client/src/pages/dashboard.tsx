@@ -4,15 +4,17 @@ import { useStore } from '@/store/useStore';
 import { 
   Tent, FileText, DollarSign, Clock, Home, Settings, 
   ChevronRight, Users, TrendingUp, Check, CheckCircle, CreditCard,
-  FileSignature, PiggyBank, BarChart3, Send, Plus
+  FileSignature, PiggyBank, BarChart3, Send, Plus, UserPlus
 } from 'lucide-react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/DashboardLayout';
 import { ProtectedPage } from '@/components/ProtectedPage';
+import JoinTentModal from '@/components/JoinTentModal';
 
 export default function Dashboard() {
   const router = useRouter();
   const { user, rooms } = useStore();
+  const [showJoinModal, setShowJoinModal] = useState(false);
 
   // Filter rooms to show as tents
   const activeTents = rooms.filter(r => r.status === 'active');
@@ -32,7 +34,7 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Link
           href="/tents/new"
           className="bg-primary-600 hover:bg-primary-700 text-white rounded-lg p-6 text-center transition"
@@ -41,6 +43,15 @@ export default function Dashboard() {
           <h3 className="text-xl font-semibold mb-2">Create New Tent</h3>
           <p className="text-sm opacity-90">Start a secure contract workflow</p>
         </Link>
+
+        <button
+          onClick={() => setShowJoinModal(true)}
+          className="bg-green-600 hover:bg-green-700 text-white rounded-lg p-6 text-center transition"
+        >
+          <UserPlus className="w-12 h-12 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold mb-2">Join a Tent</h3>
+          <p className="text-sm opacity-90">Enter a tent ID to join</p>
+        </button>
 
         <div className="bg-white rounded-lg shadow-sm p-6 text-center">
           <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -124,6 +135,12 @@ export default function Dashboard() {
           <p className="text-gray-500 text-center py-8">No recent activity</p>
         </div>
       </div>
+      
+      {/* Join Tent Modal */}
+      <JoinTentModal 
+        isOpen={showJoinModal} 
+        onClose={() => setShowJoinModal(false)} 
+      />
       </DashboardLayout>
     </ProtectedPage>
   );
