@@ -6,25 +6,63 @@ import DocumentUpload from '@/components/DocumentUpload';
 import DocumentViewer from '@/components/DocumentViewer';
 import { 
   Tent, FileText, DollarSign, Check, Copy, Users, 
-  ArrowRight, Clock, Lock, Hash 
+  ArrowRight, Clock, Lock, Hash, RefreshCw 
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ProtectedPage } from '@/components/ProtectedPage';
+import { supabase } from '@/lib/supabase';
 
 type TentStep = 'invite' | 'contract' | 'payment' | 'complete';
 
 export default function TentDetail() {
   const router = useRouter();
   const { id } = router.query;
-  const { rooms, documents, user, loadDocuments } = useStore();
+  const { rooms, documents, user, loadDocuments, loadRooms } = useStore();
   const [copiedId, setCopiedId] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   
-  // Load documents when component mounts
+  // Load documents and rooms when component mounts and set up periodic refresh
   useEffect(() => {
     if (user && id) {
       loadDocuments();
+      loadRooms(); // Ensure we have latest room data
+      
+      // Set up periodic refresh every 5 seconds
+      const interval = setInterval(() => {
+        loadRooms();
+        loadDocuments();
+      }, 5000);
+      
+      return () => clearInterval(interval);
     }
-  }, [user, id, loadDocuments]);
+  }, [user, id, loadDocuments, loadRooms]);
+  
+  // Set up real-time subscription for room updates
+  useEffect(() => {
+    if (!id) return;
+    
+    // Subscribe to room changes
+    const subscription = supabase
+      .channel(`room:${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'rooms',
+          filter: `external_id=eq.${id}`
+        },
+        (payload) => {
+          console.log('Room updated:', payload);
+          loadRooms(); // Reload rooms when changes occur
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [id, loadRooms]);
   
   const tent = rooms.find((r) => r.id === id);
   const tentDocuments = documents.filter((d) => d.roomId === id);
@@ -65,6 +103,18 @@ export default function TentDetail() {
     setTimeout(() => setCopiedId(false), 3000);
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([loadRooms(), loadDocuments()]);
+      toast.success('Refreshed successfully');
+    } catch (error) {
+      toast.error('Failed to refresh');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const steps = [
     { id: 'invite', label: 'Invite Client', icon: Users },
     { id: 'contract', label: 'Sign Contract', icon: FileText },
@@ -82,9 +132,42 @@ export default function TentDetail() {
                 <h1 className="text-3xl font-semibold text-gray-900">{tent.name}</h1>
                 <p className="text-gray-600 mt-1">Secure Contract Tent</p>
               </div>
-              <div className="flex items-center space-x-2">
-                <Lock className="w-5 h-5 text-gray-400" />
-                <span className="text-sm text-gray-600">End-to-End Encrypted</span>
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="flex items-center space-x-2 text-sm text-gray-600 hover:text-gray-900 transition"
+                >
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                  <span>Refresh</span>
+                </button>
+                <div className="flex items-center space-x-2">
+                  <Lock className="w-5 h-5 text-gray-400" />
+                  <span className="text-sm text-gray-600">End-to-End Encrypted</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tent Info */}
+          <div className="bg-gray-50 rounded-lg p-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm text-gray-600">Participants</p>
+                <p className="font-semibold">
+                  {hasInvitee ? '2/2' : '1/2'} 
+                  {!hasInvitee && ' - Awaiting invitee'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Status</p>
+                <p className="font-semibold capitalize">{tent.status}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Created</p>
+                <p className="font-semibold">
+                  {new Date(tent.createdAt).toLocaleDateString()}
+                </p>
               </div>
             </div>
           </div>
