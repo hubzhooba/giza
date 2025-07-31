@@ -11,6 +11,8 @@ import {
 import toast from 'react-hot-toast';
 import { ProtectedPage } from '@/components/ProtectedPage';
 import { supabase } from '@/lib/supabase';
+import { DatabaseService } from '@/lib/database';
+import { useRealtimeRoom } from '@/hooks/useRealtimeRoom';
 
 type TentStep = 'invite' | 'contract' | 'payment' | 'complete';
 
@@ -20,7 +22,9 @@ export default function TentDetail() {
   const { rooms, documents, user, loadDocuments, loadRooms } = useStore();
   const [copiedId, setCopiedId] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [isSubscribed, setIsSubscribed] = useState(false);
+  
+  // Use the new realtime hook
+  const { isSubscribed } = useRealtimeRoom(id as string);
   
   // Load documents and rooms when component mounts
   useEffect(() => {
@@ -41,66 +45,33 @@ export default function TentDetail() {
     }
   }, [user, id, loadDocuments, loadRooms, isSubscribed]);
   
-  // Set up real-time subscription for room updates
-  useEffect(() => {
-    if (!id || !user) return;
-    
-    let subscription: any;
-    
-    const setupSubscription = async () => {
-      // Subscribe to room changes
-      subscription = supabase
-        .channel(`room:${id}:${user.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'rooms',
-            filter: `external_id=eq.${id}`
-          },
-          async (payload) => {
-            console.log('Room updated via subscription:', payload);
-            // Debounce updates to prevent rapid re-renders
-            setTimeout(() => {
-              loadRooms();
-              loadDocuments();
-            }, 100);
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'documents',
-            filter: `room_id=eq.${id}`
-          },
-          async (payload) => {
-            console.log('Document updated via subscription:', payload);
-            setTimeout(() => {
-              loadDocuments();
-            }, 100);
-          }
-        )
-        .subscribe((status) => {
-          setIsSubscribed(status === 'SUBSCRIBED');
-          console.log('Subscription status:', status);
-        });
-    };
-    
-    setupSubscription();
-    
-    return () => {
-      if (subscription) {
-        console.log('Unsubscribing from room:', id);
-        subscription.unsubscribe();
-      }
-    };
-  }, [id, user, loadRooms, loadDocuments]);
+  // Subscription is now handled by useRealtimeRoom hook
   
+  // Find tent with proper type checking
   const tent = rooms.find((r) => r.id === id);
   const tentDocuments = documents.filter((d) => d.roomId === id);
+  
+  // Load specific room data if not in store
+  useEffect(() => {
+    const loadTentData = async () => {
+      if (id && !tent && user) {
+        try {
+          const roomData = await DatabaseService.loadRoom(id as string);
+          if (roomData) {
+            // Add to store
+            const { rooms: currentRooms } = useStore.getState();
+            useStore.setState({ 
+              rooms: [...currentRooms.filter(r => r.id !== roomData.id), roomData] 
+            });
+          }
+        } catch (error) {
+          console.error('Error loading tent data:', error);
+        }
+      }
+    };
+    
+    loadTentData();
+  }, [id, tent, user]);
   
   if (!tent || !user) {
     return (
@@ -139,14 +110,29 @@ export default function TentDetail() {
   };
 
   const handleRefresh = async () => {
+    if (refreshing) return; // Prevent multiple refreshes
+    
     setRefreshing(true);
     try {
-      await Promise.all([loadRooms(), loadDocuments()]);
-      toast.success('Refreshed successfully');
+      // Use Promise.allSettled to ensure both complete
+      const results = await Promise.allSettled([
+        loadRooms(),
+        loadDocuments()
+      ]);
+      
+      // Check if any failed
+      const failed = results.some(r => r.status === 'rejected');
+      if (failed) {
+        toast.error('Some data failed to refresh');
+      } else {
+        toast.success('Refreshed successfully');
+      }
     } catch (error) {
+      console.error('Refresh error:', error);
       toast.error('Failed to refresh');
     } finally {
-      setRefreshing(false);
+      // Ensure we always reset refreshing state
+      setTimeout(() => setRefreshing(false), 100);
     }
   };
 

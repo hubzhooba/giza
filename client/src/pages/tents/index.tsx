@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useStore } from '@/store/useStore';
 import { 
@@ -11,9 +11,16 @@ import { ProtectedPage } from '@/components/ProtectedPage';
 
 export default function MyTents() {
   const router = useRouter();
-  const { rooms, user } = useStore();
+  const { rooms, user, loadRooms } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'pending' | 'completed'>('all');
+  
+  // Ensure fresh data on page load
+  useEffect(() => {
+    if (user) {
+      loadRooms();
+    }
+  }, [user, loadRooms]);
 
   // Filter tents based on search and status
   const filteredTents = rooms.filter(tent => {

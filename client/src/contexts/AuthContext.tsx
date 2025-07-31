@@ -130,15 +130,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('AuthProvider: Auth state changed:', event);
         
         // Skip INITIAL_SESSION as we handle it above
-        if (event === 'INITIAL_SESSION') return;
-        
-        // Skip SIGNED_OUT if we still have a valid session
-        if (event === 'SIGNED_OUT' && session) {
-          console.log('AuthProvider: Ignoring SIGNED_OUT event with valid session');
+        if (event === 'INITIAL_SESSION') {
           return;
         }
         
+        // Handle SIGNED_IN event
         if (event === 'SIGNED_IN' && session?.user) {
+          // Don't reload if we already have this user
+          const currentUser = useStore.getState().user;
+          if (currentUser?.id === session.user.id) {
+            return;
+          }
           // Load profile
           const { data: profile } = await supabase
             .from('profiles')

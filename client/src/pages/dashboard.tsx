@@ -14,8 +14,16 @@ import '@/lib/utils/date';
 
 export default function Dashboard() {
   const router = useRouter();
-  const { user, rooms, documents, activities } = useStore();
+  const { user, rooms, documents, activities, loadRooms, loadDocuments } = useStore();
   const [showJoinModal, setShowJoinModal] = useState(false);
+  
+  // Ensure fresh data on dashboard load
+  useEffect(() => {
+    if (user) {
+      loadRooms();
+      loadDocuments();
+    }
+  }, [user, loadRooms, loadDocuments]);
 
   // Memoize filtered rooms to prevent unnecessary recalculations
   const activeTents = useMemo(() => 
