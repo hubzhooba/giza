@@ -61,14 +61,10 @@ export class DatabaseService {
         return null;
       }
       
-      // Query with joined profile data for better participant info
+      // Simplified query - get room data first
       const { data: roomData, error } = await supabase
         .from('rooms')
-        .select(`
-          *,
-          creator:profiles!rooms_creator_id_fkey(id, email, full_name),
-          invitee:profiles!rooms_invitee_id_fkey(id, email, full_name)
-        `)
+        .select('*')
         .eq('external_id', externalId)
         .single();
       
@@ -82,41 +78,39 @@ export class DatabaseService {
       // Build room object with proper participant info
       const participants: Participant[] = [];
       
-      // Add creator with profile info
-      if (roomData.creator_id && roomData.creator) {
+      // Get creator profile separately if needed
+      let creatorProfile = null;
+      if (roomData.creator_id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, email, full_name')
+          .eq('id', roomData.creator_id)
+          .single();
+        creatorProfile = profile;
+      }
+      
+      // Add creator
+      if (roomData.creator_id) {
         participants.push({
           userId: roomData.creator_id,
-          email: roomData.creator.email || '',
-          name: roomData.creator.full_name || roomData.creator.email || 'Room Creator',
+          email: creatorProfile?.email || '',
+          name: creatorProfile?.full_name || creatorProfile?.email || 'Room Creator',
           role: 'creator',
           hasJoined: true,
           joinedAt: new Date(roomData.created_at),
         });
       }
       
-      // Add invitee if exists
+      // Add invitee if exists - use the data already in rooms table
       if (roomData.invitee_id) {
-        if (roomData.invitee) {
-          // Use profile data if available
-          participants.push({
-            userId: roomData.invitee_id,
-            email: roomData.invitee.email || roomData.invitee_email || '',
-            name: roomData.invitee.full_name || roomData.invitee_name || roomData.invitee.email || 'Invitee',
-            role: 'signer',
-            hasJoined: true,
-            joinedAt: roomData.invitee_joined_at ? new Date(roomData.invitee_joined_at) : undefined,
-          });
-        } else {
-          // Fallback to room data
-          participants.push({
-            userId: roomData.invitee_id,
-            email: roomData.invitee_email || '',
-            name: roomData.invitee_name || 'Invitee',
-            role: 'signer',
-            hasJoined: true,
-            joinedAt: roomData.invitee_joined_at ? new Date(roomData.invitee_joined_at) : undefined,
-          });
-        }
+        participants.push({
+          userId: roomData.invitee_id,
+          email: roomData.invitee_email || '',
+          name: roomData.invitee_name || roomData.invitee_email || 'Invitee',
+          role: 'signer',
+          hasJoined: true,
+          joinedAt: roomData.invitee_joined_at ? new Date(roomData.invitee_joined_at) : undefined,
+        });
       }
       
       return {
@@ -265,7 +259,7 @@ export class DatabaseService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
-    const { data, error } = await supabase
+    const { data: rooms, error } = await supabase
       .from('rooms')
       .select('*')
       .or(`creator_id.eq.${user.id},invitee_id.eq.${user.id}`)
@@ -273,17 +267,64 @@ export class DatabaseService {
 
     if (error) throw error;
 
-    return (data || []).map(room => ({
-      id: room.external_id,
-      name: room.name,
-      creatorId: room.creator_id,
-      inviteeId: room.invitee_id,
-      participants: [],
-      encryptionKey: room.encryption_key,
-      status: room.status,
-      createdAt: new Date(room.created_at),
-      updatedAt: new Date(room.updated_at),
-    }));
+    // Get all unique creator IDs to fetch profiles in batch
+    const creatorIds = Array.from(new Set((rooms || []).map(r => r.creator_id).filter(Boolean)));
+    
+    // Fetch all creator profiles in one query
+    let creatorProfiles: Record<string, any> = {};
+    if (creatorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email, full_name')
+        .in('id', creatorIds);
+      
+      // Create lookup map
+      creatorProfiles = (profiles || []).reduce((acc: Record<string, any>, profile: any) => {
+        acc[profile.id] = profile;
+        return acc;
+      }, {});
+    }
+
+    return (rooms || []).map(room => {
+      const participants: Participant[] = [];
+      
+      // Add creator
+      if (room.creator_id) {
+        const creatorProfile = creatorProfiles[room.creator_id];
+        participants.push({
+          userId: room.creator_id,
+          email: creatorProfile?.email || '',
+          name: creatorProfile?.full_name || creatorProfile?.email || 'Room Creator',
+          role: 'creator',
+          hasJoined: true,
+          joinedAt: new Date(room.created_at),
+        });
+      }
+      
+      // Add invitee if exists
+      if (room.invitee_id) {
+        participants.push({
+          userId: room.invitee_id,
+          email: room.invitee_email || '',
+          name: room.invitee_name || room.invitee_email || 'Invitee',
+          role: 'signer',
+          hasJoined: true,
+          joinedAt: room.invitee_joined_at ? new Date(room.invitee_joined_at) : undefined,
+        });
+      }
+      
+      return {
+        id: room.external_id,
+        name: room.name,
+        creatorId: room.creator_id,
+        inviteeId: room.invitee_id,
+        participants,
+        encryptionKey: room.encryption_key,
+        status: room.status,
+        createdAt: new Date(room.created_at),
+        updatedAt: new Date(room.updated_at),
+      };
+    });
   }
 
   // Load all documents for the current user
