@@ -21,7 +21,7 @@ export default function DocumentViewer({ document, room, currentUser }: Document
   const [pageNumber, setPageNumber] = useState(1);
   const [pdfData, setPdfData] = useState<string | null>(null);
   const [signing, setSigning] = useState(false);
-  const { updateDocument, privateKey } = useStore();
+  const { updateDocument, privateKey, addActivity } = useStore();
   const encryption = EncryptionService.getInstance();
 
   useEffect(() => {
@@ -64,6 +64,17 @@ export default function DocumentViewer({ document, room, currentUser }: Document
       updateDocument(document.id, {
         signatures: [...document.signatures, newSignature],
         status: document.signatures.length + 1 === room.participants.length ? 'signed' : 'pending_signatures',
+      });
+
+      // Add activity for document signing
+      addActivity({
+        type: 'document_signed',
+        tentId: room.id,
+        tentName: room.name,
+        userId: currentUser.id,
+        userName: currentUser.name || currentUser.email,
+        documentId: document.id,
+        documentName: document.name
       });
 
       toast.success('Document signed successfully!');

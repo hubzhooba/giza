@@ -21,7 +21,7 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
   const [showAIModal, setShowAIModal] = useState(false);
   const [aiPrompt, setAIPrompt] = useState('');
   const [generatingContract, setGeneratingContract] = useState(false);
-  const { addDocument, rooms } = useStore();
+  const { addDocument, rooms, user, addActivity } = useStore();
   const encryption = EncryptionService.getInstance();
   
   const room = rooms.find(r => r.id === roomId);
@@ -75,6 +75,20 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
       };
       
       addDocument(document);
+      
+      // Add activity for document upload
+      if (user && room) {
+        addActivity({
+          type: 'document_uploaded',
+          tentId: roomId,
+          tentName: room.name,
+          userId: user.id,
+          userName: user.name || user.email,
+          documentId: document.id,
+          documentName: file.name
+        });
+      }
+      
       setFiles([]);
       setShowEditor(false);
       toast.success('Document uploaded with signature fields!');

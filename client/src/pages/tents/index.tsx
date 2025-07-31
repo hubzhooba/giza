@@ -216,7 +216,7 @@ export default function MyTents() {
                         <div className="flex items-center">
                           <Users className="w-4 h-4 text-gray-400 mr-2" />
                           <span className="text-sm text-gray-900">
-                            {tent.participants.length} / 2
+                            {tent.inviteeId ? '2/2' : '1/2'}
                           </span>
                         </div>
                       </td>

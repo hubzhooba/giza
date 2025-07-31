@@ -17,7 +17,7 @@ interface TentForm {
 export default function NewTent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const { user, addRoom } = useStore();
+  const { user, addRoom, addActivity } = useStore();
   const encryption = EncryptionService.getInstance();
 
   const {
@@ -53,6 +53,15 @@ export default function NewTent() {
       };
       
       await addRoom(room);
+      
+      // Add activity for tent creation
+      addActivity({
+        type: 'tent_created',
+        tentId: roomId,
+        tentName: data.name,
+        userId: user.id,
+        userName: user.name || user.email
+      });
       
       toast.success('Tent created successfully!');
       router.push(`/tents/${roomId}`);

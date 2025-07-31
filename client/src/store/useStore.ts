@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User, SecureRoom, Document } from '@/types';
+import { User, SecureRoom, Document, Activity } from '@/types';
 import { DatabaseService } from '@/lib/database';
 import toast from 'react-hot-toast';
 
@@ -10,6 +10,7 @@ interface AppState {
   privateKey: string | null;
   rooms: SecureRoom[];
   documents: Document[];
+  activities: Activity[];
   
   setUser: (user: User | null) => void;
   setPrivateKey: (key: string | null) => void;
@@ -22,6 +23,7 @@ interface AppState {
   updateDocument: (documentId: string, updates: Partial<Document>) => Promise<void>;
   loadRooms: () => Promise<void>;
   loadDocuments: () => Promise<void>;
+  addActivity: (activity: Omit<Activity, 'id' | 'createdAt'>) => void;
   logout: () => void;
   clearStore: () => void;
 }
@@ -34,6 +36,7 @@ export const useStore = create<AppState>()(
       privateKey: null,
       rooms: [],
       documents: [],
+      activities: [],
       
       setUser: (user) => {
         console.log('Setting user in store:', user);
@@ -113,6 +116,16 @@ export const useStore = create<AppState>()(
           console.error('Failed to load documents:', error);
         }
       },
+      addActivity: (activity) => {
+        const newActivity: Activity = {
+          ...activity,
+          id: `activity-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          createdAt: new Date()
+        };
+        set((state) => ({
+          activities: [newActivity, ...state.activities].slice(0, 50) // Keep last 50 activities
+        }));
+      },
       logout: () => {
         const state = useStore.getState();
         // Clear private key from localStorage
@@ -127,6 +140,7 @@ export const useStore = create<AppState>()(
           privateKey: null,
           rooms: [],
           documents: [],
+          activities: [],
         });
       },
       clearStore: () => {
@@ -138,6 +152,7 @@ export const useStore = create<AppState>()(
           privateKey: null,
           rooms: [],
           documents: [],
+          activities: [],
         });
       },
     }),
@@ -145,6 +160,7 @@ export const useStore = create<AppState>()(
       name: 'freelance-platform-storage',
       partialize: (state) => ({
         privateKey: state.privateKey,
+        activities: state.activities,
         // Don't persist user - let Supabase handle auth state
       }),
       version: 1,

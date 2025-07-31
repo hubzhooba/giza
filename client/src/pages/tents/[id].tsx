@@ -197,7 +197,14 @@ export default function TentDetail() {
                 <div className="space-y-3">
                   <div>
                     <p className="text-sm text-gray-600">Status</p>
-                    <p className="font-semibold capitalize">{tent.status}</p>
+                    <p className="font-semibold capitalize">
+                      {tent.status === 'pending' && !hasInvitee ? 'Waiting for Client' :
+                       tent.status === 'pending' && hasInvitee ? 'Setting Up Contract' :
+                       tent.status === 'active' && !allSigned ? 'Contract In Progress' :
+                       tent.status === 'active' && allSigned ? 'Ready for Payment' :
+                       tent.status === 'completed' ? 'Completed' :
+                       tent.status}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Created</p>
@@ -425,7 +432,14 @@ export default function TentDetail() {
                   tent.status === 'completed' ? 'bg-green-500' : 
                   tent.status === 'active' ? 'bg-blue-500' : 'bg-yellow-500'
                 }`} />
-                <span className="text-sm text-gray-600 capitalize">{tent.status}</span>
+                <span className="text-sm text-gray-600 capitalize">
+                  {tent.status === 'pending' && !hasInvitee ? 'Waiting for Client' :
+                   tent.status === 'pending' && hasInvitee ? 'Setting Up Contract' :
+                   tent.status === 'active' && !allSigned ? 'Contract In Progress' :
+                   tent.status === 'active' && allSigned ? 'Ready for Payment' :
+                   tent.status === 'completed' ? 'Completed' :
+                   tent.status}
+                </span>
               </div>
             </div>
 

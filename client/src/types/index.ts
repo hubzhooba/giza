@@ -113,3 +113,22 @@ export interface Milestone {
   dueDate: Date;
   status: 'pending' | 'in_progress' | 'completed' | 'paid';
 }
+
+export interface Activity {
+  id: string;
+  type: 'tent_created' | 'tent_joined' | 'document_uploaded' | 'document_signed' | 
+        'document_declined' | 'document_revision' | 'payment_sent' | 'payment_received' | 
+        'tent_completed' | 'invitation_sent';
+  tentId: string;
+  tentName: string;
+  userId: string;
+  userName: string;
+  targetUserId?: string;
+  targetUserName?: string;
+  documentId?: string;
+  documentName?: string;
+  amount?: number;
+  currency?: string;
+  message?: string;
+  createdAt: Date;
+}

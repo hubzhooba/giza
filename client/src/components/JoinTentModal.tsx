@@ -12,7 +12,7 @@ interface JoinTentModalProps {
 
 export default function JoinTentModal({ isOpen, onClose }: JoinTentModalProps) {
   const router = useRouter();
-  const { user, loadRooms } = useStore();
+  const { user, loadRooms, addActivity, rooms } = useStore();
   const [tentId, setTentId] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -42,6 +42,21 @@ export default function JoinTentModal({ isOpen, onClose }: JoinTentModalProps) {
       
       // Reload rooms list
       await loadRooms();
+      
+      // Load the tent details directly from database for activity tracking
+      const loadedRoom = await DatabaseService.loadRoom(tentId.trim());
+      if (loadedRoom && user) {
+        // Add activity for joining tent
+        addActivity({
+          type: 'tent_joined',
+          tentId: tentId.trim(),
+          tentName: loadedRoom.name || 'Unnamed Tent',
+          userId: user.id,
+          userName: user.name || user.email,
+          targetUserId: loadedRoom.creatorId,
+          targetUserName: loadedRoom.participants.find(p => p.userId === loadedRoom.creatorId)?.name || 'Tent Creator'
+        });
+      }
       
       toast.success('Successfully joined the tent!');
       onClose();
