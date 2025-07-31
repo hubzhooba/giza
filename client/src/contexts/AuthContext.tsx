@@ -47,34 +47,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           // Load profile with better error handling
           let profile = null;
-          let retries = 3;
-          
-          while (retries > 0 && !profile) {
-            try {
-              const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-              
-              if (error) {
-                console.error(`Profile fetch attempt ${4 - retries} failed:`, error);
-                retries--;
-                if (retries > 0) {
-                  // Wait before retry
-                  await new Promise(resolve => setTimeout(resolve, 1000));
-                }
-              } else {
-                profile = data;
-                break;
-              }
-            } catch (err) {
-              console.error(`Profile fetch attempt ${4 - retries} error:`, err);
-              retries--;
-              if (retries > 0) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-              }
+          // Try to fetch profile once with a timeout
+          try {
+            const profilePromise = supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
+            );
+            
+            const { data, error } = await Promise.race([
+              profilePromise,
+              timeoutPromise
+            ]) as any;
+            
+            if (!error && data) {
+              profile = data;
             }
+          } catch (err) {
+            console.warn('Profile fetch failed, using session data:', err);
           }
 
           // Set user state even if profile fetch failed

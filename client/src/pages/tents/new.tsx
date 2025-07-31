@@ -30,10 +30,15 @@ export default function NewTent() {
     if (!user) return;
     
     setLoading(true);
+    
+    // Generate IDs and keys immediately for instant navigation
+    const roomKey = await encryption.generateRoomKey();
+    const roomId = uuidv4();
+    
+    // Navigate immediately for better UX
+    router.push(`/tents/${roomId}`);
+    
     try {
-      const roomKey = await encryption.generateRoomKey();
-      const roomId = uuidv4();
-      
       const room = {
         id: roomId,
         name: data.name,
@@ -52,6 +57,7 @@ export default function NewTent() {
         updatedAt: new Date(),
       };
       
+      // Add room to store (this will also save to database)
       await addRoom(room);
       
       // Add activity for tent creation
@@ -64,10 +70,11 @@ export default function NewTent() {
       });
       
       toast.success('Tent created successfully!');
-      router.push(`/tents/${roomId}`);
     } catch (error) {
       toast.error('Failed to create tent');
       console.error(error);
+      // Navigate back on error
+      router.push('/tents');
     } finally {
       setLoading(false);
     }

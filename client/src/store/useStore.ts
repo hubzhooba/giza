@@ -57,7 +57,7 @@ export const useStore = create<AppState>()(
       },
       updateRoom: async (roomId, updates) => {
         try {
-          const room = useStore.getState().rooms.find(r => r.id === roomId);
+          const room = get().rooms.find(r => r.id === roomId);
           if (room) {
             await DatabaseService.saveRoom({ ...room, ...updates });
           }
@@ -86,7 +86,7 @@ export const useStore = create<AppState>()(
       },
       updateDocument: async (documentId, updates) => {
         try {
-          const document = useStore.getState().documents.find(d => d.id === documentId);
+          const document = get().documents.find(d => d.id === documentId);
           if (document) {
             await DatabaseService.saveDocument({ ...document, ...updates });
           }
@@ -127,7 +127,7 @@ export const useStore = create<AppState>()(
         }));
       },
       logout: () => {
-        const state = useStore.getState();
+        const state = get();
         // Clear private key from localStorage
         if (state.user) {
           localStorage.removeItem(`pk_${state.user.id}`);

@@ -14,15 +14,15 @@ export function ProtectedPage({ children }: ProtectedPageProps) {
   const { user } = useStore();
 
   useEffect(() => {
-    console.log('ProtectedPage state:', { isLoading, isAuthenticated, hasUser: !!user, hasSession: !!session });
+    // Add a small delay to prevent flash of loading state
+    const checkAuth = setTimeout(() => {
+      if (!isLoading && !session && !isAuthenticated) {
+        const redirect = router.asPath !== '/' ? `?redirect=${encodeURIComponent(router.asPath)}` : '';
+        router.push(`/login${redirect}`);
+      }
+    }, 100);
     
-    // Only redirect if we're absolutely sure the user is not authenticated
-    // Check session as the ultimate source of truth
-    if (!isLoading && !session && !isAuthenticated) {
-      console.log('ProtectedPage: No session, redirecting to login');
-      const redirect = router.asPath !== '/' ? `?redirect=${encodeURIComponent(router.asPath)}` : '';
-      router.push(`/login${redirect}`);
-    }
+    return () => clearTimeout(checkAuth);
   }, [isLoading, isAuthenticated, session, router]);
 
   // Show loading only while auth context is initializing
@@ -35,7 +35,6 @@ export function ProtectedPage({ children }: ProtectedPageProps) {
   }
 
   // If we have a session, show the content
-  // Session is the most reliable indicator of authentication
   if (session || isAuthenticated) {
     return <>{children}</>;
   }

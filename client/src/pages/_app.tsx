@@ -3,7 +3,7 @@ import type { AppProps } from 'next/app';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { useSessionPersistence } from '@/hooks/useSessionPersistence';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useEffect } from 'react';
 
 const queryClient = new QueryClient({
@@ -15,23 +15,15 @@ const queryClient = new QueryClient({
   },
 });
 
-function AppWithSession({ Component, pageProps }: AppProps) {
-  useSessionPersistence();
-  
-  // Clear stale cache on mount
+function AppWithProviders({ Component, pageProps }: AppProps) {
+  // Clear stale cache on mount with proper build versioning
   useEffect(() => {
-    // Check build version using dynamic build ID
-    const buildId = typeof window !== 'undefined' ? window.location.pathname : 'development';
-    const storedBuildId = localStorage.getItem('app-build-id');
-    const currentBuildTime = new Date().toISOString();
+    // Use a proper build version from environment or package.json
+    const buildVersion = process.env.NEXT_PUBLIC_BUILD_VERSION || '1.0.0';
+    const storedVersion = localStorage.getItem('app-build-version');
     
-    // Also check last clear time to prevent infinite reloads
-    const lastClearTime = localStorage.getItem('last-cache-clear');
-    const timeSinceLastClear = lastClearTime ? Date.now() - new Date(lastClearTime).getTime() : Infinity;
-    
-    // Only clear cache if it's been more than 30 seconds since last clear
-    if (storedBuildId && storedBuildId !== buildId && timeSinceLastClear > 30000) {
-      console.log('New deployment detected, clearing cache...');
+    if (storedVersion && storedVersion !== buildVersion) {
+      console.log('New version detected, clearing cache...');
       
       // Clear all caches
       if ('caches' in window) {
@@ -40,17 +32,13 @@ function AppWithSession({ Component, pageProps }: AppProps) {
         });
       }
       
-      // Clear session storage too
-      sessionStorage.clear();
-      
-      // Update build ID and clear time
-      localStorage.setItem('app-build-id', buildId);
-      localStorage.setItem('last-cache-clear', currentBuildTime);
+      // Update version
+      localStorage.setItem('app-build-version', buildVersion);
       
       // Reload to get fresh assets
       window.location.reload();
-    } else if (!storedBuildId) {
-      localStorage.setItem('app-build-id', buildId);
+    } else if (!storedVersion) {
+      localStorage.setItem('app-build-version', buildVersion);
     }
   }, []);
   
@@ -63,13 +51,13 @@ function AppWithSession({ Component, pageProps }: AppProps) {
 }
 
 export default function App(props: AppProps) {
-  const { Component, pageProps } = props;
-  
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <AppWithSession {...props} />
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <AppWithProviders {...props} />
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

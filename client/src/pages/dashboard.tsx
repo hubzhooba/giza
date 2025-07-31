@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { useStore } from '@/store/useStore';
 import { 
@@ -17,9 +17,16 @@ export default function Dashboard() {
   const { user, rooms, documents, activities } = useStore();
   const [showJoinModal, setShowJoinModal] = useState(false);
 
-  // Filter rooms to show as tents
-  const activeTents = rooms.filter(r => r.status === 'active');
-  const completedTents = rooms.filter(r => r.status === 'completed');
+  // Memoize filtered rooms to prevent unnecessary recalculations
+  const activeTents = useMemo(() => 
+    rooms.filter(r => r.status === 'active'), 
+    [rooms]
+  );
+  
+  const completedTents = useMemo(() => 
+    rooms.filter(r => r.status === 'completed'), 
+    [rooms]
+  );
 
   return (
     <ProtectedPage>

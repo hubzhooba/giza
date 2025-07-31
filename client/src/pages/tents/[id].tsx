@@ -20,49 +20,84 @@ export default function TentDetail() {
   const { rooms, documents, user, loadDocuments, loadRooms } = useStore();
   const [copiedId, setCopiedId] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
   
-  // Load documents and rooms when component mounts and set up periodic refresh
+  // Load documents and rooms when component mounts
   useEffect(() => {
     if (user && id) {
+      // Initial load
       loadDocuments();
-      loadRooms(); // Ensure we have latest room data
+      loadRooms();
       
-      // Set up periodic refresh every 5 seconds
-      const interval = setInterval(() => {
-        loadRooms();
-        loadDocuments();
-      }, 5000);
-      
-      return () => clearInterval(interval);
+      // Only set up periodic refresh if real-time subscription fails
+      if (!isSubscribed) {
+        const interval = setInterval(() => {
+          loadRooms();
+          loadDocuments();
+        }, 10000); // Reduced frequency to 10 seconds
+        
+        return () => clearInterval(interval);
+      }
     }
-  }, [user, id, loadDocuments, loadRooms]);
+  }, [user, id, loadDocuments, loadRooms, isSubscribed]);
   
   // Set up real-time subscription for room updates
   useEffect(() => {
-    if (!id) return;
+    if (!id || !user) return;
     
-    // Subscribe to room changes
-    const subscription = supabase
-      .channel(`room:${id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'rooms',
-          filter: `external_id=eq.${id}`
-        },
-        (payload) => {
-          console.log('Room updated:', payload);
-          loadRooms(); // Reload rooms when changes occur
-        }
-      )
-      .subscribe();
+    let subscription: any;
+    
+    const setupSubscription = async () => {
+      // Subscribe to room changes
+      subscription = supabase
+        .channel(`room:${id}:${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'rooms',
+            filter: `external_id=eq.${id}`
+          },
+          async (payload) => {
+            console.log('Room updated via subscription:', payload);
+            // Debounce updates to prevent rapid re-renders
+            setTimeout(() => {
+              loadRooms();
+              loadDocuments();
+            }, 100);
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'documents',
+            filter: `room_id=eq.${id}`
+          },
+          async (payload) => {
+            console.log('Document updated via subscription:', payload);
+            setTimeout(() => {
+              loadDocuments();
+            }, 100);
+          }
+        )
+        .subscribe((status) => {
+          setIsSubscribed(status === 'SUBSCRIBED');
+          console.log('Subscription status:', status);
+        });
+    };
+    
+    setupSubscription();
     
     return () => {
-      subscription.unsubscribe();
+      if (subscription) {
+        console.log('Unsubscribing from room:', id);
+        subscription.unsubscribe();
+      }
     };
-  }, [id, loadRooms]);
+  }, [id, user, loadRooms, loadDocuments]);
   
   const tent = rooms.find((r) => r.id === id);
   const tentDocuments = documents.filter((d) => d.roomId === id);
