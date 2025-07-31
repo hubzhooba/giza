@@ -61,10 +61,14 @@ export class DatabaseService {
         return null;
       }
       
-      // Simple direct query for authenticated users
+      // Query with joined profile data for better participant info
       const { data: roomData, error } = await supabase
         .from('rooms')
-        .select('*')
+        .select(`
+          *,
+          creator:profiles!rooms_creator_id_fkey(id, email, full_name),
+          invitee:profiles!rooms_invitee_id_fkey(id, email, full_name)
+        `)
         .eq('external_id', externalId)
         .single();
       
@@ -75,15 +79,15 @@ export class DatabaseService {
         return null;
       }
       
-      // Build room object
+      // Build room object with proper participant info
       const participants: Participant[] = [];
       
-      // Add creator
-      if (roomData.creator_id) {
+      // Add creator with profile info
+      if (roomData.creator_id && roomData.creator) {
         participants.push({
           userId: roomData.creator_id,
-          email: '',
-          name: 'Room Creator',
+          email: roomData.creator.email || '',
+          name: roomData.creator.full_name || roomData.creator.email || 'Room Creator',
           role: 'creator',
           hasJoined: true,
           joinedAt: new Date(roomData.created_at),
@@ -92,14 +96,27 @@ export class DatabaseService {
       
       // Add invitee if exists
       if (roomData.invitee_id) {
-        participants.push({
-          userId: roomData.invitee_id,
-          email: roomData.invitee_email || '',
-          name: roomData.invitee_name || 'Invitee',
-          role: 'signer',
-          hasJoined: true,
-          joinedAt: roomData.invitee_joined_at ? new Date(roomData.invitee_joined_at) : undefined,
-        });
+        if (roomData.invitee) {
+          // Use profile data if available
+          participants.push({
+            userId: roomData.invitee_id,
+            email: roomData.invitee.email || roomData.invitee_email || '',
+            name: roomData.invitee.full_name || roomData.invitee_name || roomData.invitee.email || 'Invitee',
+            role: 'signer',
+            hasJoined: true,
+            joinedAt: roomData.invitee_joined_at ? new Date(roomData.invitee_joined_at) : undefined,
+          });
+        } else {
+          // Fallback to room data
+          participants.push({
+            userId: roomData.invitee_id,
+            email: roomData.invitee_email || '',
+            name: roomData.invitee_name || 'Invitee',
+            role: 'signer',
+            hasJoined: true,
+            joinedAt: roomData.invitee_joined_at ? new Date(roomData.invitee_joined_at) : undefined,
+          });
+        }
       }
       
       return {

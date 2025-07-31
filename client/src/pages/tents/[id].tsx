@@ -152,22 +152,60 @@ export default function TentDetail() {
           {/* Tent Info */}
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm text-gray-600">Participants</p>
-                <p className="font-semibold">
-                  {hasInvitee ? '2/2' : '1/2'} 
-                  {!hasInvitee && ' - Awaiting invitee'}
-                </p>
+              <div className="md:col-span-2">
+                <p className="text-sm text-gray-600 mb-2">Participants ({hasInvitee ? '2/2' : '1/2'})</p>
+                <div className="space-y-1">
+                  {tent.participants && tent.participants.length > 0 ? (
+                    tent.participants.map((participant, index) => (
+                      <div key={participant.userId} className="flex items-center space-x-2">
+                        <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                          <span className="text-xs font-semibold text-primary-700">
+                            {participant.name ? participant.name.charAt(0).toUpperCase() : 'U'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-sm">
+                            {participant.name || participant.email || 'Unknown User'}
+                          </span>
+                          {participant.role === 'creator' && (
+                            <span className="ml-2 text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded">
+                              Creator
+                            </span>
+                          )}
+                          {participant.userId === user.id && (
+                            <span className="ml-2 text-xs text-gray-500">(You)</span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-gray-500">
+                      Loading participants...
+                    </div>
+                  )}
+                  {!hasInvitee && (
+                    <div className="flex items-center space-x-2 opacity-50">
+                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                        <span className="text-xs font-semibold text-gray-500">?</span>
+                      </div>
+                      <span className="text-sm text-gray-500">Awaiting invitee...</span>
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Status</p>
-                <p className="font-semibold capitalize">{tent.status}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Created</p>
-                <p className="font-semibold">
-                  {new Date(tent.createdAt).toLocaleDateString()}
-                </p>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm text-gray-600">Status</p>
+                    <p className="font-semibold capitalize">{tent.status}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Created</p>
+                    <p className="font-semibold">
+                      {new Date(tent.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
