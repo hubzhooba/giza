@@ -29,12 +29,17 @@ export class DatabaseService {
   }
   // Save room to Supabase
   static async saveRoom(room: SecureRoom) {
+    // Get creator info if available
+    const creator = room.participants.find(p => p.role === 'creator');
+    
     const { data, error } = await supabase
       .from('rooms')
       .upsert({
         external_id: room.id,
         name: room.name,
         creator_id: room.creatorId,
+        creator_email: creator?.email,
+        creator_name: creator?.name,
         encryption_key: room.encryptionKey,
         status: room.status,
         created_at: room.createdAt,
@@ -81,20 +86,36 @@ export class DatabaseService {
       // Get creator profile separately if needed
       let creatorProfile = null;
       if (roomData.creator_id) {
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('id, email, full_name')
           .eq('id', roomData.creator_id)
           .single();
-        creatorProfile = profile;
+        
+        if (profileError) {
+          console.log('DatabaseService.loadRoom: Error fetching creator profile:', profileError);
+        } else {
+          creatorProfile = profile;
+          console.log('DatabaseService.loadRoom: Creator profile:', profile);
+        }
       }
       
       // Add creator
       if (roomData.creator_id) {
+        // Use full_name with proper fallback chain
+        // First try profile data, then room data, then email, then default
+        const creatorName = creatorProfile?.full_name || 
+                           roomData.creator_name ||
+                           roomData.creator_email?.split('@')[0] ||
+                           creatorProfile?.email?.split('@')[0] || 
+                           'Room Creator';
+        
+        const creatorEmail = creatorProfile?.email || roomData.creator_email || '';
+        
         participants.push({
           userId: roomData.creator_id,
-          email: creatorProfile?.email || '',
-          name: creatorProfile?.full_name || creatorProfile?.email || 'Room Creator',
+          email: creatorEmail,
+          name: creatorName,
           role: 'creator',
           hasJoined: true,
           joinedAt: new Date(roomData.created_at),
@@ -291,10 +312,15 @@ export class DatabaseService {
       // Add creator
       if (room.creator_id) {
         const creatorProfile = creatorProfiles[room.creator_id];
+        // Use full_name with proper fallback chain
+        const creatorName = creatorProfile?.full_name || 
+                           creatorProfile?.email?.split('@')[0] || 
+                           'Room Creator';
+        
         participants.push({
           userId: room.creator_id,
           email: creatorProfile?.email || '',
-          name: creatorProfile?.full_name || creatorProfile?.email || 'Room Creator',
+          name: creatorName,
           role: 'creator',
           hasJoined: true,
           joinedAt: new Date(room.created_at),
