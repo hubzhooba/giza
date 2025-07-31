@@ -31,31 +31,14 @@ export default function JoinTentModal({ isOpen, onClose }: JoinTentModalProps) {
 
     setLoading(true);
     try {
-      // First, try to load the room to check if it exists
-      const room = await DatabaseService.loadRoom(tentId.trim());
-      
-      if (!room) {
-        toast.error('Invalid tent ID. Please check and try again.');
-        return;
-      }
-
-      // Check if user is already a participant
-      if (room.creatorId === user.id || room.inviteeId === user.id) {
-        toast.success('You are already a member of this tent!');
-        onClose();
-        router.push(`/tents/${room.id}`);
-        return;
-      }
-
-      // Check if room already has an invitee
-      if (room.inviteeId) {
-        toast.error('This tent already has another participant');
-        return;
-      }
-
-      // Join the room
-      const result = await DatabaseService.joinRoom(room.id, user.id);
+      // Try to join the room directly (the function will check if it exists)
+      const result = await DatabaseService.joinRoom(tentId.trim(), user.id);
       console.log('Join result:', result);
+      
+      if (!result.success) {
+        toast.error(result.error || 'Failed to join tent. Please check the tent ID.');
+        return;
+      }
       
       // Reload rooms list
       await loadRooms();
@@ -65,7 +48,7 @@ export default function JoinTentModal({ isOpen, onClose }: JoinTentModalProps) {
       setTentId('');
       
       // Navigate to the tent
-      router.push(`/tents/${room.id}`);
+      router.push(`/tents/${tentId.trim()}`);
     } catch (error: any) {
       console.error('Error joining tent:', error);
       toast.error(error.message || 'Failed to join tent');

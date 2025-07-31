@@ -3,15 +3,29 @@ import { SecureRoom, Document, Participant } from '@/types';
 
 export class DatabaseService {
   // Join a room as the invitee (second party)
-  static async joinRoom(roomExternalId: string, userId: string) {
-    const { data, error } = await supabase
-      .rpc('join_room', {
-        room_external_id: roomExternalId,
-        user_id: userId
-      });
+  static async joinRoom(roomExternalId: string, userId: string): Promise<{ success: boolean; error?: string; room_id?: string }> {
+    try {
+      const { data, error } = await supabase
+        .rpc('join_room_simple', {
+          room_external_id: roomExternalId,
+          user_id: userId
+        });
 
-    if (error) throw error;
-    return data;
+      if (error) {
+        console.error('DatabaseService.joinRoom: RPC error:', error);
+        return { success: false, error: error.message };
+      }
+
+      // The RPC function returns a jsonb object with success/error
+      if (data && typeof data === 'object') {
+        return data as { success: boolean; error?: string; room_id?: string };
+      }
+
+      return { success: false, error: 'Unexpected response from server' };
+    } catch (error: any) {
+      console.error('DatabaseService.joinRoom: Unexpected error:', error);
+      return { success: false, error: error.message || 'Failed to join room' };
+    }
   }
   // Save room to Supabase
   static async saveRoom(room: SecureRoom) {
