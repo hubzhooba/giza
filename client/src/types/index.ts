@@ -11,6 +11,7 @@ export interface SecureRoom {
   id: string;
   name: string;
   creatorId: string;
+  creatorWallet?: string; // Wallet address for wallet-based creators
   inviteeId?: string; // New field for two-party system
   participants: Participant[];
   encryptionKey: string;
@@ -25,12 +26,14 @@ export interface SecureRoom {
   };
   isCreator?: boolean;
   isInvitee?: boolean;
+  description?: string;
 }
 
 export interface Participant {
   userId: string;
   email: string;
   name: string;
+  walletAddress?: string; // For wallet-based users
   role: 'creator' | 'signer';
   hasJoined: boolean;
   publicKey?: string;

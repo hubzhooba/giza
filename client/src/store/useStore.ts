@@ -102,7 +102,10 @@ export const useStore = create<AppState>()(
       },
       loadRooms: async () => {
         try {
-          const rooms = await DatabaseService.loadRooms();
+          // Get wallet address from user if available
+          const state = get();
+          const walletAddress = state.user?.publicKey || state.user?.id;
+          const rooms = await DatabaseService.loadRooms(walletAddress);
           set({ rooms });
         } catch (error) {
           console.error('Failed to load rooms:', error);

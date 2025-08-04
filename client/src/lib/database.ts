@@ -32,19 +32,30 @@ export class DatabaseService {
     // Get creator info if available
     const creator = room.participants.find(p => p.role === 'creator');
     
+    // For wallet users, use wallet address as creator_id if no Supabase user ID
+    const creatorId = room.creatorId || creator?.walletAddress || room.creatorWallet;
+    
+    // Prepare room data
+    const roomData: any = {
+      external_id: room.id,
+      name: room.name,
+      encryption_key: room.encryptionKey,
+      status: room.status,
+      created_at: room.createdAt,
+      updated_at: room.updatedAt,
+    };
+    
+    // Only include creator fields if we have a creator ID
+    if (creatorId) {
+      roomData.creator_id = creatorId;
+      roomData.creator_email = creator?.email || `${creatorId.substring(0, 8)}...@arweave`;
+      roomData.creator_name = creator?.name || `User ${creatorId.substring(0, 8)}`;
+      roomData.creator_wallet = room.creatorWallet || creator?.walletAddress;
+    }
+    
     const { data, error } = await supabase
       .from('rooms')
-      .upsert({
-        external_id: room.id,
-        name: room.name,
-        creator_id: room.creatorId,
-        creator_email: creator?.email,
-        creator_name: creator?.name,
-        encryption_key: room.encryptionKey,
-        status: room.status,
-        created_at: room.createdAt,
-        updated_at: room.updatedAt,
-      }, {
+      .upsert(roomData, {
         onConflict: 'external_id'
       })
       .select()
@@ -59,19 +70,15 @@ export class DatabaseService {
     console.log('DatabaseService.loadRoom: Loading room with external_id:', externalId);
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        console.log('DatabaseService.loadRoom: User not authenticated');
-        return null;
-      }
+      // For wallet users, we don't need Supabase auth
+      // The room access is controlled by encryption keys
       
       // Simplified query - get room data first
       const { data: roomData, error } = await supabase
         .from('rooms')
         .select('*')
         .eq('external_id', externalId)
-        .single();
+        .maybeSingle();
       
       console.log('DatabaseService.loadRoom: Query result:', { data: roomData, error });
       
@@ -116,6 +123,7 @@ export class DatabaseService {
           userId: roomData.creator_id as string,
           email: creatorEmail as string,
           name: creatorName as string,
+          walletAddress: roomData.creator_wallet as string,
           role: 'creator',
           hasJoined: true,
           joinedAt: new Date(roomData.created_at as string),
@@ -138,6 +146,7 @@ export class DatabaseService {
         id: roomData.external_id as string,
         name: roomData.name as string,
         creatorId: roomData.creator_id as string,
+        creatorWallet: roomData.creator_wallet as string,
         inviteeId: roomData.invitee_id as string,
         participants,
         encryptionKey: roomData.encryption_key as string,
@@ -145,6 +154,7 @@ export class DatabaseService {
         updatedAt: new Date(roomData.updated_at as string),
         status: roomData.status as 'pending' | 'active' | 'completed' | 'cancelled',
         contractData: {},
+        description: roomData.description as string,
       };
     } catch (error) {
       console.error('DatabaseService.loadRoom: Unexpected error:', error);
@@ -296,15 +306,25 @@ export class DatabaseService {
   }
 
   // Load all rooms for the current user
-  static async loadRooms(): Promise<SecureRoom[]> {
+  static async loadRooms(walletAddress?: string): Promise<SecureRoom[]> {
+    // Try to get auth user first
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
-
-    const { data: rooms, error } = await supabase
-      .from('rooms')
-      .select('*')
-      .or(`creator_id.eq.${user.id},invitee_id.eq.${user.id}`)
-      .order('created_at', { ascending: false });
+    
+    // Build query based on user type
+    let query = supabase.from('rooms').select('*');
+    
+    if (user) {
+      // Auth user - use user ID
+      query = query.or(`creator_id.eq.${user.id},invitee_id.eq.${user.id}`);
+    } else if (walletAddress) {
+      // Wallet user - use wallet address
+      query = query.or(`creator_wallet.eq.${walletAddress},creator_id.eq.${walletAddress}`);
+    } else {
+      // No user - return empty
+      return [];
+    }
+    
+    const { data: rooms, error } = await query.order('created_at', { ascending: false });
 
     if (error) throw error;
 
@@ -341,6 +361,7 @@ export class DatabaseService {
           userId: room.creator_id as string,
           email: creatorProfile?.email || '',
           name: creatorName,
+          walletAddress: room.creator_wallet as string,
           role: 'creator',
           hasJoined: true,
           joinedAt: new Date(room.created_at as string),
@@ -363,12 +384,14 @@ export class DatabaseService {
         id: room.external_id as string,
         name: room.name as string,
         creatorId: room.creator_id as string,
+        creatorWallet: room.creator_wallet as string,
         inviteeId: room.invitee_id as string,
         participants,
         encryptionKey: room.encryption_key as string,
         status: room.status as 'pending' | 'active' | 'completed' | 'cancelled',
         createdAt: new Date(room.created_at as string),
         updatedAt: new Date(room.updated_at as string),
+        description: room.description as string,
       };
     });
   }
