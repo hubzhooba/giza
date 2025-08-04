@@ -32,6 +32,7 @@ export default function DocumentQuery({ roomId, userId, onDocumentSelect }: Docu
   const [cursor, setCursor] = useState<string | undefined>();
   const [hasMore, setHasMore] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const { user, rooms } = useStore();
   const stoar = StoarService.getInstance();
@@ -42,8 +43,11 @@ export default function DocumentQuery({ roomId, userId, onDocumentSelect }: Docu
       try {
         const walletKey = process.env.NEXT_PUBLIC_ARWEAVE_WALLET_KEY;
         await stoar.init(walletKey || undefined);
+        setIsInitialized(true);
       } catch (error) {
         handleStoarError(error, { operation: 'init' });
+        // Set initialized to true even on error to prevent infinite loading
+        setIsInitialized(true);
       }
     };
 
@@ -92,8 +96,10 @@ export default function DocumentQuery({ roomId, userId, onDocumentSelect }: Docu
 
   // Initial search
   useEffect(() => {
-    searchDocuments();
-  }, [filters.roomId, filters.userId]);
+    if (isInitialized) {
+      searchDocuments();
+    }
+  }, [isInitialized, filters.roomId, filters.userId]);
 
   const formatDate = (timestamp?: number) => {
     if (!timestamp) return 'Unknown';
@@ -113,6 +119,17 @@ export default function DocumentQuery({ roomId, userId, onDocumentSelect }: Docu
   const getTagValue = (tags: Record<string, string>, key: string) => {
     return tags[key] || 'Unknown';
   };
+
+  if (!isInitialized) {
+    return (
+      <div className="card glossy">
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Initializing STOAR service...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="card glossy">

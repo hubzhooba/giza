@@ -46,6 +46,11 @@ export class StoarService {
   }
 
   async init(walletSource?: string | ArrayBuffer | object): Promise<void> {
+    // If already initialized, return early
+    if (this.isInitialized) {
+      return;
+    }
+    
     try {
       // If no wallet source provided, use ArConnect
       if (!walletSource && typeof window !== 'undefined' && window.arweaveWallet) {
@@ -62,11 +67,19 @@ export class StoarService {
         region: 'us-east-1'
       });
     } catch (error) {
+      // Reset initialization state on error
+      this.isInitialized = false;
+      
       if (error instanceof WalletError) {
         throw new Error(`Wallet initialization failed: ${error.message}`);
       }
       throw error;
     }
+  }
+
+  // Add a method to check initialization status
+  getIsInitialized(): boolean {
+    return this.isInitialized;
   }
 
   async checkBalance(): Promise<{ balance: string; sufficient: boolean }> {
