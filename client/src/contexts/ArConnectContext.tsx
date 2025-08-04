@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
+import { supabase } from '@/lib/supabase-client';
 
 interface ArConnectContextType {
   isConnected: boolean;
@@ -67,33 +68,31 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
   // Check for active session
   const checkSession = async () => {
     try {
-      const token = localStorage.getItem('arweave_session_token');
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
-
-      // Validate session with backend
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/validate-session`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.isValid) {
-          setWalletAddress(data.walletAddress);
-          setUsernameState(data.username);
-          setDisplayName(data.displayName);
-          setIsUsernameSet(data.isUsernameSet);
-          setIsConnected(true);
-          
-          // Refresh balance
-          await refreshBalanceInternal(data.walletAddress);
-        } else {
-          // Session expired
-          localStorage.removeItem('arweave_session_token');
+      const storedWallet = localStorage.getItem('arweave_wallet_address');
+      const storedUsername = localStorage.getItem('arweave_username');
+      
+      if (storedWallet) {
+        // Check if wallet is still connected
+        if (window.arweaveWallet) {
+          try {
+            const address = await window.arweaveWallet.getActiveAddress();
+            if (address === storedWallet) {
+              setWalletAddress(storedWallet);
+              setUsernameState(storedUsername);
+              setDisplayName(storedUsername);
+              setIsUsernameSet(!!storedUsername);
+              setIsConnected(true);
+              await refreshBalanceInternal(storedWallet);
+            } else {
+              // Different wallet connected, clear session
+              localStorage.removeItem('arweave_wallet_address');
+              localStorage.removeItem('arweave_username');
+            }
+          } catch (e) {
+            // Wallet not connected
+            localStorage.removeItem('arweave_wallet_address');
+            localStorage.removeItem('arweave_username');
+          }
         }
       }
     } catch (error) {
@@ -103,7 +102,7 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Connect wallet
+  // Connect wallet - simplified version that works without backend
   const connect = async () => {
     if (!isArConnectInstalled()) {
       toast.error('Please install ArConnect extension first');
@@ -129,65 +128,67 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
       // Get wallet address
       const address = await window.arweaveWallet.getActiveAddress();
       
-      // Sign a message to verify ownership
-      const nonce = generateNonce();
-      const message = `Sign this message to authenticate with Giza.\nNonce: ${nonce}`;
-      const signature = await window.arweaveWallet.signature(
-        new TextEncoder().encode(message),
-        {
-          name: "RSA-PSS",
-          saltLength: 32,
+      // Store in localStorage for persistence
+      localStorage.setItem('arweave_wallet_address', address);
+      
+      // Check if user exists in database
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('wallet_address', address)
+        .single();
+      
+      if (profile) {
+        // Existing user
+        setWalletAddress(address);
+        setUsernameState(profile.username);
+        setDisplayName(profile.display_name || profile.username);
+        setIsUsernameSet(!!profile.username);
+        setIsConnected(true);
+        
+        if (profile.username) {
+          localStorage.setItem('arweave_username', profile.username);
         }
-      );
-      
-      // Authenticate with backend
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/wallet-login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          walletAddress: address,
-          permissions: ['ACCESS_ADDRESS', 'ACCESS_PUBLIC_KEY', 'SIGN_TRANSACTION', 'ENCRYPT', 'DECRYPT', 'SIGNATURE', 'ACCESS_ARWEAVE_CONFIG', 'DISPATCH'],
-          nonce,
-          signature: Array.from(new Uint8Array(signature))
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Authentication failed');
-      }
-
-      const data = await response.json();
-      
-      // Store session
-      localStorage.setItem('arweave_session_token', data.sessionToken);
-      
-      // Update state
-      setWalletAddress(address);
-      setUsernameState(data.username);
-      setDisplayName(data.displayName || data.username);
-      setIsUsernameSet(data.isUsernameSet);
-      setIsConnected(true);
-      
-      // Get balance
-      await refreshBalanceInternal(address);
-      
-      // Show success message
-      if (data.isNewUser) {
-        toast.success('Welcome! Please set your username.');
-        router.push('/onboarding');
-      } else {
-        toast.success(`Welcome back${data.username ? ', ' + data.username : ''}!`);
-        if (!data.isUsernameSet) {
+        
+        // Get balance
+        await refreshBalanceInternal(address);
+        
+        toast.success(`Welcome back${profile.username ? ', ' + profile.username : ''}!`);
+        
+        if (!profile.username) {
           router.push('/onboarding');
         } else {
           router.push('/dashboard');
         }
+      } else {
+        // New user - create profile
+        const { error } = await supabase
+          .from('profiles')
+          .insert({
+            wallet_address: address,
+            name: `User ${address.substring(0, 8)}`,
+            email: `${address.toLowerCase()}@wallet.local`
+          });
+        
+        if (!error) {
+          setWalletAddress(address);
+          setIsConnected(true);
+          toast.success('Welcome! Please set your username.');
+          router.push('/onboarding');
+        } else {
+          throw new Error('Failed to create profile');
+        }
       }
+      
+      // Get balance
+      await refreshBalanceInternal(address);
+      
     } catch (error: any) {
       console.error('Wallet connection failed:', error);
       toast.error(error.message || 'Failed to connect wallet');
+      // Clear any stored data
+      localStorage.removeItem('arweave_wallet_address');
+      localStorage.removeItem('arweave_username');
     } finally {
       setIsLoading(false);
     }
@@ -196,7 +197,8 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
   // Disconnect wallet
   const disconnect = () => {
     // Clear session
-    localStorage.removeItem('arweave_session_token');
+    localStorage.removeItem('arweave_wallet_address');
+    localStorage.removeItem('arweave_username');
     
     // Reset state
     setIsConnected(false);
@@ -224,18 +226,14 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
       const balanceInAR = (parseInt(balanceInWinston) / 1e12).toFixed(4);
       setBalance(balanceInAR);
       
-      // Update balance in backend
-      const token = localStorage.getItem('arweave_session_token');
-      if (token) {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/update-balance`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ balance: balanceInAR })
-        });
-      }
+      // Update balance in database
+      await supabase
+        .from('profiles')
+        .update({ 
+          wallet_balance: balanceInAR,
+          last_balance_check: new Date().toISOString()
+        })
+        .eq('wallet_address', address);
     } catch (error) {
       console.error('Failed to fetch balance:', error);
     }
@@ -247,38 +245,46 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Set username
+  // Set username - works directly with Supabase
   const setUsername = async (newUsername: string): Promise<boolean> => {
     try {
-      const token = localStorage.getItem('arweave_session_token');
-      if (!token) {
-        throw new Error('Not authenticated');
+      if (!walletAddress) {
+        throw new Error('Not connected');
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/set-username`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ username: newUsername })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Username update failed');
-      }
-
-      const data = await response.json();
-      if (data.success) {
-        setUsernameState(newUsername);
-        setDisplayName(newUsername);
-        setIsUsernameSet(true);
-        toast.success('Username set successfully!');
-        return true;
-      }
+      // Check if username is taken
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', newUsername.toLowerCase())
+        .single();
       
-      return false;
+      if (existing) {
+        toast.error('Username already taken');
+        return false;
+      }
+
+      // Update username
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          username: newUsername.toLowerCase(),
+          display_name: newUsername,
+          is_username_set: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('wallet_address', walletAddress);
+
+      if (error) {
+        throw error;
+      }
+
+      setUsernameState(newUsername);
+      setDisplayName(newUsername);
+      setIsUsernameSet(true);
+      localStorage.setItem('arweave_username', newUsername);
+      toast.success('Username set successfully!');
+      return true;
     } catch (error: any) {
       toast.error(error.message || 'Failed to set username');
       return false;
@@ -300,21 +306,29 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Sign message
+  // Sign message - using the new API
   const signMessage = async (message: string): Promise<string> => {
     if (!isConnected || !window.arweaveWallet) {
       throw new Error('Wallet not connected');
     }
 
     try {
-      const signature = await window.arweaveWallet.signature(
-        new TextEncoder().encode(message),
-        {
-          name: "RSA-PSS",
-          saltLength: 32,
-        }
-      );
-      return btoa(Array.from(new Uint8Array(signature), b => String.fromCharCode(b)).join(''));
+      // Use the new signMessage API if available
+      if (window.arweaveWallet.signMessage) {
+        const signature = await window.arweaveWallet.signMessage(message);
+        return signature;
+      } else {
+        // Fallback to old API
+        console.warn('Using deprecated signature API');
+        const signature = await window.arweaveWallet.signature(
+          new TextEncoder().encode(message),
+          {
+            name: "RSA-PSS",
+            saltLength: 32,
+          }
+        );
+        return btoa(Array.from(new Uint8Array(signature), b => String.fromCharCode(b)).join(''));
+      }
     } catch (error: any) {
       console.error('Message signing failed:', error);
       throw new Error(error.message || 'Failed to sign message');

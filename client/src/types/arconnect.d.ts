@@ -15,6 +15,8 @@ interface ArweaveWallet {
   isTokenAdded(id: string): Promise<boolean>;
   dispatch(args: { type: string; data?: any }): Promise<any>;
   getArweaveConfig(): Promise<any>;
+  // New API (may not be available in older versions)
+  signMessage?(message: string, options?: any): Promise<string>;
 }
 
 interface Window {

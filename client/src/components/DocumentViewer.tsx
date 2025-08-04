@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Document as PDFDocument, Page, pdfjs } from 'react-pdf';
-import { FileText, Download, Edit, CheckCircle, AlertCircle, Cloud } from 'lucide-react';
+import { FileText, Download, Edit, CheckCircle, AlertCircle, Cloud, Wallet } from 'lucide-react';
 import { Document, SecureRoom, User } from '@/types';
 import { EncryptionService } from '@/lib/encryption';
 import { StoarService } from '@/lib/stoar';
 import { useStore } from '@/store/useStore';
+import { useArConnect } from '@/contexts/ArConnectContext';
+import { useSignedAction } from '@/hooks/useSignedAction';
 import toast from 'react-hot-toast';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -24,6 +26,8 @@ export default function DocumentViewer({ document, room, currentUser }: Document
   const [signing, setSigning] = useState(false);
   const [loadingFromArweave, setLoadingFromArweave] = useState(false);
   const { updateDocument, privateKey, addActivity } = useStore();
+  const { walletAddress, isConnected } = useArConnect();
+  const { signDocument } = useSignedAction();
   const encryption = EncryptionService.getInstance();
   const stoar = StoarService.getInstance();
 
@@ -37,12 +41,9 @@ export default function DocumentViewer({ document, room, currentUser }: Document
         if ((document as any).arweaveId) {
           setLoadingFromArweave(true);
           try {
-            // Initialize STOAR if not already done
-            const walletKey = process.env.NEXT_PUBLIC_ARWEAVE_WALLET_KEY;
-            try {
-              await stoar.init(walletKey || undefined);
-            } catch (initError) {
-              console.warn('STOAR initialization failed, continuing with fallback:', initError);
+            // Initialize STOAR with wallet if connected
+            if (isConnected) {
+              await stoar.init(); // Will use ArConnect
             }
             
             // Fetch from Arweave
@@ -77,54 +78,76 @@ export default function DocumentViewer({ document, room, currentUser }: Document
     if (document.encryptedContent || (document as any).arweaveId) {
       decryptDocument();
     }
-  }, [document, room.encryptionKey]);
+  }, [document, room.encryptionKey, isConnected]);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
   };
 
   const handleSign = async () => {
-    if (!privateKey) {
-      toast.error('Private key not found. Please log in again.');
+    if (!isConnected || !walletAddress) {
+      toast.error('Please connect your wallet to sign documents');
       return;
     }
 
     setSigning(true);
-    try {
-      const signature = await encryption.signData(document.id, privateKey);
-      
-      const newSignature = {
-        userId: currentUser.id,
-        signature,
-        timestamp: new Date(),
-        publicKey: currentUser.publicKey,
-      };
+    
+    // Use wallet signing for document signatures
+    const result = await signDocument(
+      document.id,
+      document.name,
+      async () => {
+        // Create signature data
+        const signatureData = {
+          documentId: document.id,
+          documentName: document.name,
+          roomId: room.id,
+          timestamp: new Date().toISOString(),
+          signerAddress: walletAddress,
+        };
+        
+        // The actual signature was already created by signDocument hook
+        const newSignature = {
+          userId: currentUser.id,
+          signature: walletAddress, // Use wallet address as identifier
+          timestamp: new Date(),
+          publicKey: currentUser.publicKey || walletAddress,
+          walletAddress: walletAddress,
+        };
 
-      updateDocument(document.id, {
-        signatures: [...document.signatures, newSignature],
-        status: document.signatures.length + 1 === room.participants.length ? 'signed' : 'pending_signatures',
-      });
+        // Update document with new signature
+        updateDocument(document.id, {
+          signatures: [...document.signatures, newSignature],
+          status: document.signatures.length + 1 === room.participants.length ? 'signed' : 'pending_signatures',
+        });
 
-      // Add activity for document signing
-      addActivity({
-        type: 'document_signed',
-        tentId: room.id,
-        tentName: room.name,
-        userId: currentUser.id,
-        userName: currentUser.name || currentUser.email,
-        documentId: document.id,
-        documentName: document.name
-      });
+        // Add activity for document signing
+        addActivity({
+          type: 'document_signed',
+          tentId: room.id,
+          tentName: room.name,
+          userId: currentUser.id,
+          userName: currentUser.name || currentUser.email,
+          documentId: document.id,
+          documentName: document.name,
+          message: `Signed with wallet ${walletAddress.substring(0, 8)}...${walletAddress.substring(walletAddress.length - 6)}`
+        });
 
-      toast.success('Document signed successfully!');
-    } catch (error) {
-      toast.error('Failed to sign document');
-    } finally {
-      setSigning(false);
+        return newSignature;
+      }
+    );
+
+    setSigning(false);
+
+    if (result) {
+      toast.success('Document signed successfully with wallet!');
     }
   };
 
-  const hasUserSigned = document.signatures.some((sig) => sig.userId === currentUser.id);
+  const hasUserSigned = document.signatures.some((sig) => 
+    sig.userId === currentUser.id || 
+    (sig as any).walletAddress === walletAddress
+  );
   const allSigned = document.signatures.length === room.participants.length;
 
   return (
@@ -208,11 +231,17 @@ export default function DocumentViewer({ document, room, currentUser }: Document
           <h4 className="text-sm font-medium text-gray-700">Signatures:</h4>
           {document.signatures.map((sig) => {
             const participant = room.participants.find((p) => p.userId === sig.userId);
+            const signerAddress = (sig as any).walletAddress || sig.publicKey;
             return (
               <div key={sig.userId} className="flex items-center text-sm">
                 <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
                 <span className="text-gray-600">
                   {participant?.name} - {new Date(sig.timestamp).toLocaleString()}
+                  {signerAddress && (
+                    <span className="ml-2 text-xs text-gray-400">
+                      ({signerAddress.substring(0, 8)}...{signerAddress.substring(signerAddress.length - 6)})
+                    </span>
+                  )}
                 </span>
               </div>
             );
@@ -228,11 +257,20 @@ export default function DocumentViewer({ document, room, currentUser }: Document
           {!hasUserSigned && !allSigned && (
             <button
               onClick={handleSign}
-              disabled={signing}
+              disabled={signing || !isConnected}
               className="btn-primary flex items-center disabled:opacity-50"
             >
-              <Edit className="w-4 h-4 mr-2" />
-              {signing ? 'Signing...' : 'Sign Document'}
+              {isConnected ? (
+                <>
+                  <Wallet className="w-4 h-4 mr-2" />
+                  {signing ? 'Signing...' : 'Sign with Wallet'}
+                </>
+              ) : (
+                <>
+                  <Wallet className="w-4 h-4 mr-2" />
+                  Connect Wallet to Sign
+                </>
+              )}
             </button>
           )}
         </div>
