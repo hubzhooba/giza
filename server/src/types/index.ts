@@ -40,7 +40,8 @@ export interface Document {
   roomId: string;
   name: string;
   type?: 'contract' | 'invoice';
-  arweaveId?: string;
+  arweaveId?: string; // STOAR transaction ID
+  arweaveUrl?: string; // STOAR URL for direct access
   encryptedContent?: string;
   fields?: string;
   signatures: Signature[];
@@ -98,6 +99,8 @@ export interface PaymentMethod {
 }
 
 // Server-specific types
+import { Request } from 'express';
+
 export interface AuthRequest extends Request {
   user?: {
     id: string;

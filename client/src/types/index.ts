@@ -42,7 +42,8 @@ export interface Document {
   roomId: string;
   name: string;
   type?: 'contract' | 'invoice';
-  arweaveId?: string;
+  arweaveId?: string; // STOAR transaction ID
+  arweaveUrl?: string; // STOAR URL for direct access
   encryptedContent?: string;
   fields?: string; // JSON string of field definitions
   signatures: Signature[];

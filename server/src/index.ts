@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import rateLimit from 'express-rate-limit';
+import documentsRoutes from './routes/documents.routes.js';
 
 // Load environment variables based on NODE_ENV
 if (process.env.NODE_ENV === 'development') {
@@ -58,6 +59,9 @@ app.use('/api/', limiter);
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// API Routes
+app.use('/api/documents', documentsRoutes);
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);

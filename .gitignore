@@ -25,10 +25,16 @@ lerna-debug.log*
 
 # Local env files
 .env
+.env.*
+!.env.example
+!.env.*.example
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+*/.env
+*/.env.local
+*/.env.production.local
 
 # Vercel
 .vercel
@@ -75,6 +81,7 @@ pids
 # Temporary files
 tmp/
 temp/
+uploads/
 
 # Supabase
 **/supabase/.branches
@@ -82,11 +89,18 @@ temp/
 
 # Arweave wallet (sensitive)
 arweave-wallet.json
+wallet.json
 *.ar
 
-# Private keys (never commit these\!)
+# Private keys (never commit these!)
 *.key
 *.pem
 private/
 secrets/
-EOF < /dev/null
+
+# Sensitive configuration files
+NEXT_STEPS.md
+
+# Any file with actual credentials
+*credentials*
+*secrets*

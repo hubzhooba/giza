@@ -1,7 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, X, Edit3, Sparkles } from 'lucide-react';
+import { Upload, FileText, X, Edit3, Sparkles, AlertCircle } from 'lucide-react';
 import { EncryptionService } from '@/lib/encryption';
+import { StoarService } from '@/lib/stoar';
+import { handleStoarError, StoarErrorHandler } from '@/lib/stoar-error-handler';
 import { useStore } from '@/store/useStore';
 import PDFFieldEditor from './PDFFieldEditor';
 import toast from 'react-hot-toast';
@@ -21,10 +23,38 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
   const [showAIModal, setShowAIModal] = useState(false);
   const [aiPrompt, setAIPrompt] = useState('');
   const [generatingContract, setGeneratingContract] = useState(false);
+  const [stoarInitialized, setStoarInitialized] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<string>('');
   const { addDocument, rooms, user, addActivity } = useStore();
   const encryption = EncryptionService.getInstance();
+  const stoar = StoarService.getInstance();
   
   const room = rooms.find(r => r.id === roomId);
+
+  // Initialize STOAR with wallet
+  useEffect(() => {
+    const initStoar = async () => {
+      try {
+        // Check if we have a wallet in environment or use browser wallet
+        const walletKey = process.env.NEXT_PUBLIC_ARWEAVE_WALLET_KEY;
+        if (walletKey) {
+          await stoar.init(walletKey);
+        } else {
+          // Try to use ArConnect browser wallet
+          await stoar.init();
+        }
+        setStoarInitialized(true);
+
+        // Check wallet balance
+        const { balance } = await stoar.checkBalance();
+        setWalletBalance(balance);
+      } catch (error) {
+        handleStoarError(error, { operation: 'init' });
+      }
+    };
+
+    initStoar();
+  }, []);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     setFiles(acceptedFiles);
@@ -55,19 +85,76 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
     setUploading(true);
     try {
       const file = files[0];
+      const documentId = uuidv4();
+      
+      // Encrypt the PDF content
       const base64 = btoa(
         new Uint8Array(pdfBytes).reduce((data, byte) => data + String.fromCharCode(byte), '')
       );
-      
       const { encrypted, nonce } = await encryption.encryptData(base64, encryptionKey);
       
+      // Prepare the encrypted document data
+      const encryptedDocumentData = JSON.stringify({
+        encrypted,
+        nonce,
+        fields, // Include field definitions
+        metadata: {
+          name: file.name,
+          type: 'contract',
+          createdAt: new Date().toISOString(),
+          createdBy: user?.id || 'unknown'
+        }
+      });
+
+      // Upload to Arweave using STOAR
+      let arweaveId = '';
+      let arweaveUrl = '';
+      
+      if (stoarInitialized) {
+        try {
+          const uploadResult = await stoar.uploadDocument(
+            encryptedDocumentData,
+            {
+              name: `${file.name}.encrypted`,
+              contentType: 'application/json',
+              roomId,
+              documentId,
+              encrypted: true
+            },
+            {
+              tags: {
+                'File-Name': file.name,
+                'File-Type': 'contract',
+                'User-ID': user?.id || 'unknown'
+              },
+              progress: (progress) => {
+                console.log(`Upload progress: ${progress}%`);
+              }
+            }
+          );
+
+          arweaveId = uploadResult.id;
+          arweaveUrl = uploadResult.url;
+          toast.success('Document uploaded to Arweave successfully!');
+        } catch (error) {
+          handleStoarError(error, { 
+            operation: 'upload', 
+            fileName: file.name 
+          });
+          toast('Document saved locally. Arweave upload failed.', { icon: '⚠️' });
+        }
+      }
+      
+      // Create document record
       const document = {
-        id: uuidv4(),
+        id: documentId,
         roomId,
         name: file.name,
         type: 'contract' as const,
         encryptedContent: JSON.stringify({ encrypted, nonce }),
-        fields: JSON.stringify(fields), // Store field definitions
+        fields: JSON.stringify(fields),
+        arweaveId, // Store the Arweave transaction ID
+        arweaveUrl, // Store the Arweave URL
         signatures: [],
         status: 'pending_signatures' as const,
         createdAt: new Date(),
@@ -91,8 +178,9 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
       
       setFiles([]);
       setShowEditor(false);
-      toast.success('Document uploaded with signature fields!');
+      toast.success('Document saved with signature fields!');
     } catch (error) {
+      console.error('Upload error:', error);
       toast.error('Failed to upload document');
     } finally {
       setUploading(false);
@@ -232,7 +320,15 @@ Freelancer: _____________________  Date: __________`;
   return (
     <>
       <div className="card glossy">
-        <h3 className="text-lg font-semibold mb-4 bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">Upload Document</h3>
+        <div className="flex justify-between items-start mb-4">
+          <h3 className="text-lg font-semibold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">Upload Document</h3>
+          {stoarInitialized && walletBalance && (
+            <div className="flex items-center text-sm text-gray-600">
+              <AlertCircle className="w-4 h-4 mr-1" />
+              <span>Balance: {walletBalance} AR</span>
+            </div>
+          )}
+        </div>
         
         {files.length === 0 ? (
           <>

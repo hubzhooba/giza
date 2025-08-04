@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Document as PDFDocument, Page, pdfjs } from 'react-pdf';
-import { FileText, Download, Edit, CheckCircle, AlertCircle } from 'lucide-react';
+import { FileText, Download, Edit, CheckCircle, AlertCircle, Cloud } from 'lucide-react';
 import { Document, SecureRoom, User } from '@/types';
 import { EncryptionService } from '@/lib/encryption';
+import { StoarService } from '@/lib/stoar';
 import { useStore } from '@/store/useStore';
 import toast from 'react-hot-toast';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
@@ -21,21 +22,59 @@ export default function DocumentViewer({ document, room, currentUser }: Document
   const [pageNumber, setPageNumber] = useState(1);
   const [pdfData, setPdfData] = useState<string | null>(null);
   const [signing, setSigning] = useState(false);
+  const [loadingFromArweave, setLoadingFromArweave] = useState(false);
   const { updateDocument, privateKey, addActivity } = useStore();
   const encryption = EncryptionService.getInstance();
+  const stoar = StoarService.getInstance();
 
   useEffect(() => {
     const decryptDocument = async () => {
       try {
-        const { encrypted, nonce } = JSON.parse(document.encryptedContent!);
-        const decrypted = await encryption.decryptData(encrypted, nonce, room.encryptionKey);
+        let encryptedData;
+        let fields;
+        
+        // Check if document has Arweave ID and try to fetch from there first
+        if ((document as any).arweaveId) {
+          setLoadingFromArweave(true);
+          try {
+            // Initialize STOAR if not already done
+            const walletKey = process.env.NEXT_PUBLIC_ARWEAVE_WALLET_KEY;
+            try {
+              await stoar.init(walletKey || undefined);
+            } catch (initError) {
+              console.warn('STOAR initialization failed, continuing with fallback:', initError);
+            }
+            
+            // Fetch from Arweave
+            const arweaveData = await stoar.getDocument((document as any).arweaveId);
+            const arweaveContent = JSON.parse(new TextDecoder().decode(arweaveData));
+            
+            encryptedData = { encrypted: arweaveContent.encrypted, nonce: arweaveContent.nonce };
+            fields = arweaveContent.fields;
+            
+            toast.success('Document loaded from Arweave');
+          } catch (error) {
+            console.error('Failed to fetch from Arweave:', error);
+            toast('Loading from local storage instead', { icon: '⚠️' });
+            // Fall back to local storage
+            encryptedData = JSON.parse(document.encryptedContent!);
+          } finally {
+            setLoadingFromArweave(false);
+          }
+        } else {
+          // No Arweave ID, use local storage
+          encryptedData = JSON.parse(document.encryptedContent!);
+        }
+        
+        const decrypted = await encryption.decryptData(encryptedData.encrypted, encryptedData.nonce, room.encryptionKey);
         setPdfData(`data:application/pdf;base64,${decrypted}`);
       } catch (error) {
+        console.error('Document decryption error:', error);
         toast.error('Failed to decrypt document');
       }
     };
 
-    if (document.encryptedContent) {
+    if (document.encryptedContent || (document as any).arweaveId) {
       decryptDocument();
     }
   }, [document, room.encryptionKey]);
@@ -98,6 +137,15 @@ export default function DocumentViewer({ document, room, currentUser }: Document
             <p className="text-sm text-gray-500">
               Uploaded on {new Date(document.createdAt).toLocaleDateString()}
             </p>
+            {(document as any).arweaveId && (
+              <div className="flex items-center mt-1">
+                <Cloud className="w-3 h-3 text-green-600 mr-1" />
+                <span className="text-xs text-green-600">Stored on Arweave</span>
+                {loadingFromArweave && (
+                  <span className="ml-2 text-xs text-gray-500">Loading...</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
         
