@@ -12,8 +12,8 @@ DROP POLICY IF EXISTS "Users can create rooms" ON rooms;
 -- Create new policy that allows both auth users and wallet users
 CREATE POLICY "Users can create rooms" ON rooms
 FOR INSERT WITH CHECK (
-  -- Allow if creator_id matches auth user (cast UUID to text)
-  (creator_id = auth.uid()::text) 
+  -- Allow if creator_id matches auth user (both as text)
+  (creator_id::text = auth.uid()::text) 
   OR 
   -- Allow if creator_wallet is provided (for wallet users)
   (creator_wallet IS NOT NULL)
@@ -33,8 +33,8 @@ DROP POLICY IF EXISTS "Users can update their rooms" ON rooms;
 
 CREATE POLICY "Users can update their rooms" ON rooms
 FOR UPDATE USING (
-  -- Allow if creator_id matches auth user (cast UUID to text)
-  (creator_id = auth.uid()::text)
+  -- Allow if creator_id matches auth user (both as text)
+  (creator_id::text = auth.uid()::text)
   OR
   -- For wallet users, we'll need to verify ownership differently
   (creator_wallet IS NOT NULL)
