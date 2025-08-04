@@ -6,6 +6,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import rateLimit from 'express-rate-limit';
 import documentsRoutes from './routes/documents.routes.js';
+import authRoutes from './routes/auth.routes.js';
 
 // Load environment variables based on NODE_ENV
 if (process.env.NODE_ENV === 'development') {
@@ -61,6 +62,7 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentsRoutes);
 
 io.on('connection', (socket) => {

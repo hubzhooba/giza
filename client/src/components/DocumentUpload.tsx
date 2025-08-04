@@ -9,6 +9,8 @@ import PDFFieldEditor from './PDFFieldEditor';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { useSignedAction } from '@/hooks/useSignedAction';
+import { useArConnect } from '@/contexts/ArConnectContext';
 
 interface DocumentUploadProps {
   roomId: string;
@@ -26,6 +28,8 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
   const [stoarInitialized, setStoarInitialized] = useState(false);
   const [walletBalance, setWalletBalance] = useState<string>('');
   const { addDocument, rooms, user, addActivity } = useStore();
+  const { balance } = useArConnect();
+  const { uploadDocument } = useSignedAction();
   const encryption = EncryptionService.getInstance();
   const stoar = StoarService.getInstance();
   
@@ -35,14 +39,8 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
   useEffect(() => {
     const initStoar = async () => {
       try {
-        // Check if we have a wallet in environment or use browser wallet
-        const walletKey = process.env.NEXT_PUBLIC_ARWEAVE_WALLET_KEY;
-        if (walletKey) {
-          await stoar.init(walletKey);
-        } else {
-          // Try to use ArConnect browser wallet
-          await stoar.init();
-        }
+        // Always use ArConnect for signing in production
+        await stoar.init(); // Will use ArConnect automatically
         setStoarInitialized(true);
 
         // Check wallet balance
@@ -106,13 +104,13 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
         }
       });
 
-      // Upload to Arweave using STOAR
+      // Upload to Arweave using STOAR with wallet signing
       let arweaveId = '';
       let arweaveUrl = '';
       
       if (stoarInitialized) {
-        try {
-          const uploadResult = await stoar.uploadDocument(
+        const uploadResult = await uploadDocument(file.name, async () => {
+          return await stoar.uploadDocument(
             encryptedDocumentData,
             {
               name: `${file.name}.encrypted`,
@@ -132,16 +130,14 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
               }
             }
           );
+        });
 
+        if (uploadResult) {
           arweaveId = uploadResult.id;
           arweaveUrl = uploadResult.url;
           toast.success('Document uploaded to Arweave successfully!');
-        } catch (error) {
-          handleStoarError(error, { 
-            operation: 'upload', 
-            fileName: file.name 
-          });
-          toast('Document saved locally. Arweave upload failed.', { icon: '⚠️' });
+        } else {
+          toast('Document saved locally. Arweave upload was cancelled.', { icon: '⚠️' });
         }
       }
       

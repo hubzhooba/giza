@@ -1,12 +1,12 @@
 import { ReactNode, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useStore } from '@/store/useStore';
+import { useArConnect } from '@/contexts/ArConnectContext';
 import { 
   Home, FileText, DollarSign, CreditCard, Users, 
-  Settings, LogOut, Menu, X, ChevronRight, Gift, Tent
+  Settings, LogOut, Menu, X, ChevronRight, Gift, Tent, Wallet
 } from 'lucide-react';
-import { useAuthContext } from '@/contexts/AuthContext';
+import { ArweaveIcon } from './icons/ArweaveIcon';
 import toast from 'react-hot-toast';
 import LiquidBubbles from './LiquidBubbles';
 
@@ -23,18 +23,18 @@ interface NavItem {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
-  const { user } = useStore();
-  const { signOut } = useAuthContext();
+  const { username, displayName, walletAddress, balance, disconnect } = useArConnect();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const navigation: NavItem[] = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'My Tents', href: '/tents', icon: Tent },
+    { name: 'Documents', href: '/documents/archive', icon: FileText },
   ];
 
-  const handleLogout = async () => {
-    await signOut();
-    toast.success('Logged out successfully');
+  const handleLogout = () => {
+    disconnect();
+    toast.success('Disconnected successfully');
   };
 
   return (
@@ -50,10 +50,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex items-center justify-between h-16 px-4 border-b border-white/20">
             <Link href="/dashboard" className="flex items-center space-x-2">
               <div className="relative">
-                <Tent className="w-8 h-8 text-primary-600" />
-                <div className="absolute inset-0 w-8 h-8 bg-primary-600/20 blur-xl"></div>
+                <ArweaveIcon className="w-8 h-8 text-blue-400" />
+                <div className="absolute inset-0 w-8 h-8 bg-blue-400/20 blur-xl"></div>
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">SecureContract</span>
+              <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Giza</span>
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -69,7 +69,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               const Icon = item.icon;
               const isActive = item.href === '/tents' 
                 ? router.pathname.startsWith('/tents')
-                : router.pathname === item.href;
+                : router.pathname === item.href || router.pathname.startsWith(item.href + '/');
               
               return (
                 <Link
@@ -96,24 +96,22 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             })}
           </nav>
 
-          {/* Referral Section */}
+          {/* Wallet Balance Section */}
           <div className="p-4 border-t border-white/20">
-            <Link
-              href="/referral"
-              className="flex items-center justify-between p-3 rounded-2xl relative overflow-hidden group transition-all duration-300 hover:scale-[1.02]"
-              style={{
-                background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.8) 0%, rgba(79, 70, 229, 0.8) 100%)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-              }}
-            >
-              <div className="flex items-center space-x-3 relative z-10">
-                <Gift className="w-5 h-5 text-white" />
-                <span className="font-medium text-white">Get up to $500</span>
+            <div className="p-3 rounded-2xl backdrop-blur-md bg-white/10 border border-white/20">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                  <ArweaveIcon className="w-5 h-5 text-blue-400" />
+                  <span className="text-sm font-medium text-gray-700">Wallet Balance</span>
+                </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-white relative z-10" />
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-indigo-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            </Link>
+              <p className="text-lg font-bold text-gray-900">
+                {balance ? `${balance} AR` : 'Loading...'}
+              </p>
+              <p className="text-xs text-gray-500 mt-1 truncate">
+                {walletAddress?.substring(0, 8)}...{walletAddress?.substring(walletAddress.length - 8)}
+              </p>
+            </div>
           </div>
 
           {/* User Section */}
@@ -127,18 +125,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                        border: '1px solid rgba(255, 255, 255, 0.3)',
                      }}>
                   <span className="text-primary-700 font-semibold">
-                    {user?.name?.charAt(0).toUpperCase() || 'U'}
+                    {displayName?.charAt(0).toUpperCase() || username?.charAt(0).toUpperCase() || 'U'}
                   </span>
                   <div className="absolute inset-0 bg-gradient-to-tr from-transparent to-white/20"></div>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                  <p className="text-xs text-gray-500">{user?.email}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {displayName || username || 'Anonymous'}
+                  </p>
+                  <p className="text-xs text-gray-500">Connected</p>
                 </div>
               </div>
               <button
                 onClick={handleLogout}
                 className="text-gray-500 hover:text-gray-700"
+                title="Disconnect wallet"
               >
                 <LogOut className="w-5 h-5" />
               </button>
@@ -167,11 +168,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </button>
           
           <div className="flex items-center space-x-4 ml-auto">
-            <div className="text-sm text-gray-600">
-              You're on a <span className="font-semibold">free trial</span>
-            </div>
-            <div className="btn-primary text-white text-sm px-4 py-2 rounded-full glossy">
-              29 days remaining
+            {/* Balance display for desktop */}
+            <div className="hidden md:flex items-center space-x-2 bg-white/10 backdrop-blur-md rounded-full px-4 py-2 border border-white/20">
+              <Wallet className="w-4 h-4 text-blue-400" />
+              <span className="text-sm font-medium">
+                {balance ? `${balance} AR` : 'Loading...'}
+              </span>
             </div>
           </div>
         </header>

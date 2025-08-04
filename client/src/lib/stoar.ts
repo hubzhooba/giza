@@ -47,7 +47,13 @@ export class StoarService {
 
   async init(walletSource?: string | ArrayBuffer | object): Promise<void> {
     try {
-      await this.client.init(walletSource);
+      // If no wallet source provided, use ArConnect
+      if (!walletSource && typeof window !== 'undefined' && window.arweaveWallet) {
+        // Use ArConnect for signing
+        await this.client.init('use_wallet');
+      } else {
+        await this.client.init(walletSource);
+      }
       this.isInitialized = true;
       
       // Initialize S3 client for compatibility
