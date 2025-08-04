@@ -266,8 +266,7 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
           .insert({
             wallet_address: address,
             public_key: publicKey,
-            name: `User ${address.substring(0, 8)}`,
-            // Don't require email for wallet users
+            // Don't set name or email - they might not exist in the table
             auth_signature: signature,
             auth_nonce: nonce,
             last_login: new Date().toISOString()

@@ -71,29 +71,38 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
       const storedWallet = localStorage.getItem('arweave_wallet_address');
       const storedUsername = localStorage.getItem('arweave_username');
       
-      if (storedWallet) {
+      if (storedWallet && window.arweaveWallet) {
         // Check if wallet is still connected
-        if (window.arweaveWallet) {
-          try {
-            const address = await window.arweaveWallet.getActiveAddress();
-            if (address === storedWallet) {
-              setWalletAddress(storedWallet);
-              setUsernameState(storedUsername);
-              setDisplayName(storedUsername);
-              setIsUsernameSet(!!storedUsername);
-              setIsConnected(true);
-              await refreshBalanceInternal(storedWallet);
-            } else {
-              // Different wallet connected, clear session
-              localStorage.removeItem('arweave_wallet_address');
-              localStorage.removeItem('arweave_username');
-            }
-          } catch (e) {
-            // Wallet not connected
+        try {
+          const address = await window.arweaveWallet.getActiveAddress();
+          if (address === storedWallet) {
+            // Verify the wallet is actually accessible
+            await window.arweaveWallet.getActivePublicKey();
+            
+            setWalletAddress(storedWallet);
+            setUsernameState(storedUsername);
+            setDisplayName(storedUsername);
+            setIsUsernameSet(!!storedUsername);
+            setIsConnected(true);
+            await refreshBalanceInternal(storedWallet);
+          } else {
+            // Different wallet connected, clear session
             localStorage.removeItem('arweave_wallet_address');
             localStorage.removeItem('arweave_username');
           }
+        } catch (e) {
+          // Wallet not connected or accessible
+          localStorage.removeItem('arweave_wallet_address');
+          localStorage.removeItem('arweave_username');
+          setIsConnected(false);
+          setWalletAddress(null);
         }
+      } else {
+        // No stored wallet or ArConnect not available
+        localStorage.removeItem('arweave_wallet_address');
+        localStorage.removeItem('arweave_username');
+        setIsConnected(false);
+        setWalletAddress(null);
       }
     } catch (error) {
       console.error('Session check failed:', error);
@@ -170,8 +179,7 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
           .from('profiles')
           .insert({
             wallet_address: address,
-            name: `User ${address.substring(0, 8)}`,
-            // Don't set email as it's not required for wallet users
+            // Don't set name or email - they might not exist in the table
           })
           .select()
           .single();
