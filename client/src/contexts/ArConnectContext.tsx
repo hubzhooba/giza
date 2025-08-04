@@ -422,40 +422,19 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // Use the new signMessage API if available
-      if (window.arweaveWallet.signMessage) {
-        // Convert string to Uint8Array
-        const encoder = new TextEncoder();
-        const data = encoder.encode(message);
-        
-        // Create a new ArrayBuffer and copy the data
-        const buffer = new ArrayBuffer(data.length);
-        const view = new Uint8Array(buffer);
-        view.set(data);
-        
-        // The new API expects ArrayBuffer
-        const signature = await window.arweaveWallet.signMessage(buffer);
-        
-        // Convert signature to base64 string
-        if (typeof signature === 'string') {
-          return signature;
+      // TEMPORARY: Force use of legacy API until we figure out the new API format
+      // The new signMessage API seems to have issues with ArrayBuffer format
+      console.log('[ArConnect] Using legacy signature API (forced)');
+      const encoder = new TextEncoder();
+      const data = encoder.encode(message);
+      const signature = await window.arweaveWallet.signature(
+        data,
+        {
+          name: "RSA-PSS",
+          saltLength: 32,
         }
-        const bytes = new Uint8Array(signature);
-        return btoa(Array.from(bytes, b => String.fromCharCode(b)).join(''));
-      } else {
-        // Fallback to old API
-        console.warn('Using deprecated signature API');
-        const encoder = new TextEncoder();
-        const data = encoder.encode(message);
-        const signature = await window.arweaveWallet.signature(
-          data,
-          {
-            name: "RSA-PSS",
-            saltLength: 32,
-          }
-        );
-        return btoa(Array.from(new Uint8Array(signature), b => String.fromCharCode(b)).join(''));
-      }
+      );
+      return btoa(Array.from(new Uint8Array(signature), b => String.fromCharCode(b)).join(''));
     } catch (error: any) {
       console.error('Message signing failed:', error);
       throw new Error(error.message || 'Failed to sign message');

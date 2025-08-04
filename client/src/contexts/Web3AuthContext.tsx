@@ -188,36 +188,17 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
       // Sign authentication message
       let signature: string;
       try {
-        // Try new API first
-        if (window.arweaveWallet.signMessage) {
-          // Convert string to Uint8Array
-          const encoder = new TextEncoder();
-          const data = encoder.encode(authMessage);
-          
-          // Create a new ArrayBuffer and copy the data
-          const buffer = new ArrayBuffer(data.length);
-          const view = new Uint8Array(buffer);
-          view.set(data);
-          
-          const sig = await window.arweaveWallet.signMessage(buffer);
-          if (typeof sig === 'string') {
-            signature = sig;
-          } else {
-            signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
+        // TEMPORARY: Force use of legacy API
+        const encoder = new TextEncoder();
+        const data = encoder.encode(authMessage);
+        const sig = await window.arweaveWallet.signature(
+          data,
+          {
+            name: "RSA-PSS",
+            saltLength: 32,
           }
-        } else {
-          // Fallback to old API
-          const encoder = new TextEncoder();
-          const data = encoder.encode(authMessage);
-          const sig = await window.arweaveWallet.signature(
-            data,
-            {
-              name: "RSA-PSS",
-              saltLength: 32,
-            }
-          );
-          signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
-        }
+        );
+        signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
       } catch (error) {
         throw new Error('Failed to sign authentication message');
       }
@@ -372,31 +353,14 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
         let signature: string;
         
         try {
-          if (window.arweaveWallet.signMessage) {
-            // Convert string to Uint8Array
-            const encoder = new TextEncoder();
-            const data = encoder.encode(updateMessage);
-            
-            // Create a new ArrayBuffer and copy the data
-            const buffer = new ArrayBuffer(data.length);
-            const view = new Uint8Array(buffer);
-            view.set(data);
-            
-            const sig = await window.arweaveWallet.signMessage(buffer);
-            if (typeof sig === 'string') {
-              signature = sig;
-            } else {
-              signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
-            }
-          } else {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(updateMessage);
-            const sig = await window.arweaveWallet.signature(
-              data,
-              { name: "RSA-PSS", saltLength: 32 }
-            );
-            signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
-          }
+          // TEMPORARY: Force use of legacy API
+          const encoder = new TextEncoder();
+          const data = encoder.encode(updateMessage);
+          const sig = await window.arweaveWallet.signature(
+            data,
+            { name: "RSA-PSS", saltLength: 32 }
+          );
+          signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
           
           await supabase
             .from('profiles')
@@ -452,31 +416,14 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
       let signature: string;
       
       try {
-        if (window.arweaveWallet.signMessage) {
-          // Convert string to Uint8Array
-          const encoder = new TextEncoder();
-          const data = encoder.encode(message);
-          
-          // Create a new ArrayBuffer and copy the data
-          const buffer = new ArrayBuffer(data.length);
-          const view = new Uint8Array(buffer);
-          view.set(data);
-          
-          const sig = await window.arweaveWallet.signMessage(buffer);
-          if (typeof sig === 'string') {
-            signature = sig;
-          } else {
-            signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
-          }
-        } else {
-          const encoder = new TextEncoder();
-          const data = encoder.encode(message);
-          const sig = await window.arweaveWallet.signature(
-            data,
-            { name: "RSA-PSS", saltLength: 32 }
-          );
-          signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
-        }
+        // TEMPORARY: Force use of legacy API
+        const encoder = new TextEncoder();
+        const data = encoder.encode(message);
+        const sig = await window.arweaveWallet.signature(
+          data,
+          { name: "RSA-PSS", saltLength: 32 }
+        );
+        signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
       } catch (error) {
         throw new Error('Failed to sign username change');
       }
@@ -552,36 +499,17 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       let signature: string;
       
-      // Try new API first
-      if (window.arweaveWallet.signMessage) {
-        // Convert string to Uint8Array
-        const encoder = new TextEncoder();
-        const data = encoder.encode(message);
-        
-        // Create a new ArrayBuffer and copy the data
-        const buffer = new ArrayBuffer(data.length);
-        const view = new Uint8Array(buffer);
-        view.set(data);
-        
-        const sig = await window.arweaveWallet.signMessage(buffer);
-        if (typeof sig === 'string') {
-          signature = sig;
-        } else {
-          signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
+      // TEMPORARY: Force use of legacy API
+      const encoder = new TextEncoder();
+      const data = encoder.encode(message);
+      const sig = await window.arweaveWallet.signature(
+        data,
+        {
+          name: "RSA-PSS",
+          saltLength: 32,
         }
-      } else {
-        // Fallback to old API
-        const encoder = new TextEncoder();
-        const data = encoder.encode(message);
-        const sig = await window.arweaveWallet.signature(
-          data,
-          {
-            name: "RSA-PSS",
-            saltLength: 32,
-          }
-        );
-        signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
-      }
+      );
+      signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
       
       return signature;
     } catch (error: any) {
