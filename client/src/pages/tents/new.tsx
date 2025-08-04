@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { Tent, ArrowRight, Lock, Link as LinkIcon, Wallet } from 'lucide-react';
 import { ArweaveIcon } from '@/components/icons/ArweaveIcon';
 import { v4 as uuidv4 } from 'uuid';
+import type { SecureRoom } from '@/types';
 
 interface TentForm {
   name: string;
@@ -49,16 +50,16 @@ function NewTent() {
         // Navigate immediately for better UX
         router.push(`/tents/${roomId}`);
         
-        const room = {
+        const room: SecureRoom = {
           id: roomId,
           name: data.name,
           creatorId: user.id,
-          creatorWallet: walletAddress,
+          creatorWallet: walletAddress || undefined,
           participants: [{
             userId: user.id,
             email: user.email,
             name: user.name,
-            walletAddress: walletAddress,
+            walletAddress: walletAddress || undefined,
             role: 'creator' as const,
             hasJoined: true,
             joinedAt: new Date(),
