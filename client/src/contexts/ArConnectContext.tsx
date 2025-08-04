@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase-client';
+import { useStore } from '@/store/useStore';
 
 interface ArConnectContextType {
   isConnected: boolean;
@@ -34,6 +35,7 @@ const generateNonce = () => {
 
 export function ArConnectProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const { setUser } = useStore();
   const [isConnected, setIsConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [username, setUsernameState] = useState<string | null>(null);
@@ -104,6 +106,19 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
             setDisplayName(profile?.display_name || profile?.username || storedUsername || null);
             setIsUsernameSet(!!profile?.username);
             setIsConnected(true);
+            
+            // Set user in global store for tent creation
+            if (profile) {
+              setUser({
+                id: profile.id || storedWallet,
+                email: profile.email || `${storedWallet.substring(0, 8)}...${storedWallet.slice(-6)}@arweave`,
+                name: profile.display_name || profile.username || `${storedWallet.substring(0, 8)}...${storedWallet.slice(-6)}`,
+                publicKey: await window.arweaveWallet.getActivePublicKey(),
+                createdAt: profile.created_at ? new Date(profile.created_at) : new Date(),
+                updatedAt: new Date(),
+              });
+            }
+            
             await refreshBalanceInternal(storedWallet);
           } else {
             // Different wallet connected, clear session
@@ -187,6 +202,16 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
         setIsUsernameSet(!!profile.username);
         setIsConnected(true);
         
+        // Set user in global store for tent creation
+        setUser({
+          id: profile.id || address,
+          email: profile.email || `${address.substring(0, 8)}...${address.slice(-6)}@arweave`,
+          name: profile.display_name || profile.username || `${address.substring(0, 8)}...${address.slice(-6)}`,
+          publicKey: publicKey,
+          createdAt: profile.created_at ? new Date(profile.created_at) : new Date(),
+          updatedAt: new Date(),
+        });
+        
         if (profile.username) {
           localStorage.setItem('arweave_username', profile.username);
         }
@@ -215,6 +240,17 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
         if (!insertError && newProfile) {
           setWalletAddress(address);
           setIsConnected(true);
+          
+          // Set user in global store for tent creation
+          setUser({
+            id: newProfile.id || address,
+            email: newProfile.email || `${address.substring(0, 8)}...${address.slice(-6)}@arweave`,
+            name: newProfile.display_name || newProfile.username || `${address.substring(0, 8)}...${address.slice(-6)}`,
+            publicKey: publicKey,
+            createdAt: newProfile.created_at ? new Date(newProfile.created_at) : new Date(),
+            updatedAt: new Date(),
+          });
+          
           toast.success('Welcome! Please set your username.');
           router.push('/onboarding', undefined, { shallow: true });
         } else {
@@ -247,6 +283,9 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
     // Clear session
     localStorage.removeItem('arweave_wallet_address');
     localStorage.removeItem('arweave_username');
+    
+    // Clear user from global store
+    setUser(null);
     
     // Reset state
     setIsConnected(false);
