@@ -169,8 +169,9 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
         'DISPATCH'
       ]);
 
-      // Get wallet address
+      // Get wallet address and public key
       const address = await window.arweaveWallet.getActiveAddress();
+      const publicKey = await window.arweaveWallet.getActivePublicKey();
       
       // Store in localStorage for persistence
       localStorage.setItem('arweave_wallet_address', address);
@@ -235,7 +236,17 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
             // Don't set name or email - they might not exist in the table
           })
           .select()
-          .single();
+          .single() as {
+            data: {
+              id?: string;
+              email?: string;
+              username?: string;
+              display_name?: string;
+              created_at?: string;
+              [key: string]: any;
+            } | null;
+            error: any;
+          };
         
         if (!insertError && newProfile) {
           setWalletAddress(address);
