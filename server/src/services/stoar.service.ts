@@ -43,7 +43,10 @@ export class StoarService {
     try {
       const walletKey = process.env.ARWEAVE_WALLET_KEY;
       if (!walletKey) {
-        throw new Error('ARWEAVE_WALLET_KEY not configured');
+        console.warn('ARWEAVE_WALLET_KEY not configured - STOAR will use client-side wallets');
+        // Mark as initialized but without server wallet
+        this.isInitialized = true;
+        return;
       }
 
       await this.client.init(walletKey);
@@ -55,7 +58,7 @@ export class StoarService {
         region: 'us-east-1'
       });
 
-      console.log('STOAR Service initialized successfully');
+      console.log('STOAR Service initialized successfully with server wallet');
       const balance = await this.client.getBalance();
       console.log(`Wallet balance: ${balance} AR`);
     } catch (error) {
@@ -67,6 +70,9 @@ export class StoarService {
   private ensureInitialized(): void {
     if (!this.isInitialized) {
       throw new Error('STOAR Service not initialized. Call init() first.');
+    }
+    if (!this.client.getAddress || !process.env.ARWEAVE_WALLET_KEY) {
+      throw new Error('STOAR operations require client-side wallet. Server wallet not configured.');
     }
   }
 
