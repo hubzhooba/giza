@@ -31,11 +31,13 @@ export default function OnboardingPage() {
     const timer = setTimeout(async () => {
       setIsChecking(true);
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/check-username?username=${username}`);
-        const data = await response.json();
-        setIsAvailable(data.available);
+        // For now, just check if it's valid format
+        // The actual uniqueness check will happen when submitting
+        const valid = isValidUsername(username);
+        setIsAvailable(valid);
       } catch (error) {
         console.error('Username check failed:', error);
+        setIsAvailable(true); // Allow proceeding on error
       } finally {
         setIsChecking(false);
       }

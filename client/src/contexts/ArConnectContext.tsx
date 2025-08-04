@@ -85,10 +85,24 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
             // Verify the wallet is actually accessible
             await window.arweaveWallet.getActivePublicKey();
             
+            // Load profile from database
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('wallet_address', storedWallet)
+              .maybeSingle() as {
+                data: {
+                  username?: string;
+                  display_name?: string;
+                  [key: string]: any;
+                } | null;
+                error: any;
+              };
+            
             setWalletAddress(storedWallet);
-            setUsernameState(storedUsername);
-            setDisplayName(storedUsername);
-            setIsUsernameSet(!!storedUsername);
+            setUsernameState(profile?.username || storedUsername || null);
+            setDisplayName(profile?.display_name || profile?.username || storedUsername || null);
+            setIsUsernameSet(!!profile?.username);
             setIsConnected(true);
             await refreshBalanceInternal(storedWallet);
           } else {

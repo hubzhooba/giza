@@ -15,19 +15,28 @@ import '@/lib/utils/date';
 
 function Dashboard() {
   const router = useRouter();
-  const { username, displayName, walletAddress, balance, refreshBalance } = useArConnect();
+  const { username, displayName, walletAddress, balance, refreshBalance, isUsernameSet } = useArConnect();
   const [rooms, setRooms] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [loading, setLoading] = useState(true);
   
+  // Redirect to onboarding if username not set
+  useEffect(() => {
+    if (walletAddress && !isUsernameSet) {
+      router.push('/onboarding');
+    }
+  }, [walletAddress, isUsernameSet, router]);
+  
   // Load user data
   useEffect(() => {
-    loadUserData();
-    const interval = setInterval(refreshBalance, 60000); // Refresh balance every minute
-    return () => clearInterval(interval);
-  }, [walletAddress]);
+    if (walletAddress && isUsernameSet) {
+      loadUserData();
+      const interval = setInterval(refreshBalance, 60000); // Refresh balance every minute
+      return () => clearInterval(interval);
+    }
+  }, [walletAddress, isUsernameSet]);
 
   const loadUserData = async () => {
     if (!walletAddress) return;
