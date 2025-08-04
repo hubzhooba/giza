@@ -197,9 +197,9 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
         toast.success(`Welcome back${profile.username ? ', ' + profile.username : ''}!`);
         
         if (!profile.username) {
-          router.push('/onboarding');
+          router.push('/onboarding', undefined, { shallow: true });
         } else {
-          router.push('/dashboard');
+          router.push('/dashboard', undefined, { shallow: true });
         }
       } else {
         // New user - create profile
@@ -216,7 +216,7 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
           setWalletAddress(address);
           setIsConnected(true);
           toast.success('Welcome! Please set your username.');
-          router.push('/onboarding');
+          router.push('/onboarding', undefined, { shallow: true });
         } else {
           console.error('Profile creation error:', insertError);
           throw new Error('Failed to create profile');
@@ -316,7 +316,7 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
         .from('profiles')
         .select('id')
         .eq('username', newUsername.toLowerCase())
-        .single();
+        .maybeSingle();
       
       if (existing) {
         toast.error('Username already taken');

@@ -25,7 +25,7 @@ function Dashboard() {
   // Redirect to onboarding if username not set
   useEffect(() => {
     if (walletAddress && !isUsernameSet) {
-      router.push('/onboarding');
+      router.push('/onboarding', undefined, { shallow: true });
     }
   }, [walletAddress, isUsernameSet, router]);
   
