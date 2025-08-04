@@ -16,7 +16,7 @@ interface ArweaveWallet {
   dispatch(args: { type: string; data?: any }): Promise<any>;
   getArweaveConfig(): Promise<any>;
   // New API (may not be available in older versions)
-  signMessage?(message: string, options?: any): Promise<string>;
+  signMessage?(message: ArrayBuffer | string, options?: any): Promise<ArrayBuffer | string>;
 }
 
 interface Window {

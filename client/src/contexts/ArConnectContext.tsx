@@ -422,15 +422,23 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
+      // Convert string to ArrayBuffer
+      const encoder = new TextEncoder();
+      const data = encoder.encode(message);
+      const buffer = data.buffer;
+      
       // Use the new signMessage API if available
       if (window.arweaveWallet.signMessage) {
-        const signature = await window.arweaveWallet.signMessage(message);
-        return signature;
+        // The new API expects ArrayBuffer, not string
+        const signature = await window.arweaveWallet.signMessage(buffer);
+        // Convert ArrayBuffer signature to base64 string
+        const bytes = new Uint8Array(signature);
+        return btoa(Array.from(bytes, b => String.fromCharCode(b)).join(''));
       } else {
         // Fallback to old API
         console.warn('Using deprecated signature API');
         const signature = await window.arweaveWallet.signature(
-          new TextEncoder().encode(message),
+          data,
           {
             name: "RSA-PSS",
             saltLength: 32,
