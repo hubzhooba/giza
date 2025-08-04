@@ -425,13 +425,17 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
       // Convert string to ArrayBuffer
       const encoder = new TextEncoder();
       const data = encoder.encode(message);
-      const buffer = data.buffer;
+      // Ensure we have a proper ArrayBuffer, not ArrayBufferLike
+      const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
       
       // Use the new signMessage API if available
       if (window.arweaveWallet.signMessage) {
         // The new API expects ArrayBuffer, not string
-        const signature = await window.arweaveWallet.signMessage(buffer);
+        const signature = await window.arweaveWallet.signMessage(buffer as ArrayBuffer);
         // Convert ArrayBuffer signature to base64 string
+        if (typeof signature === 'string') {
+          return signature;
+        }
         const bytes = new Uint8Array(signature);
         return btoa(Array.from(bytes, b => String.fromCharCode(b)).join(''));
       } else {

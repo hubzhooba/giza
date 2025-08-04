@@ -191,12 +191,17 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
         // Convert string to ArrayBuffer
         const encoder = new TextEncoder();
         const data = encoder.encode(authMessage);
-        const buffer = data.buffer;
+        // Ensure we have a proper ArrayBuffer, not ArrayBufferLike
+        const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
         
         // Try new API first
         if (window.arweaveWallet.signMessage) {
-          const sig = await window.arweaveWallet.signMessage(buffer);
-          signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
+          const sig = await window.arweaveWallet.signMessage(buffer as ArrayBuffer);
+          if (typeof sig === 'string') {
+            signature = sig;
+          } else {
+            signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
+          }
         } else {
           // Fallback to old API
           const sig = await window.arweaveWallet.signature(
@@ -365,11 +370,16 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
           // Convert string to ArrayBuffer
           const encoder = new TextEncoder();
           const data = encoder.encode(updateMessage);
-          const buffer = data.buffer;
+          // Ensure we have a proper ArrayBuffer, not ArrayBufferLike
+          const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
           
           if (window.arweaveWallet.signMessage) {
-            const sig = await window.arweaveWallet.signMessage(buffer);
-            signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
+            const sig = await window.arweaveWallet.signMessage(buffer as ArrayBuffer);
+            if (typeof sig === 'string') {
+              signature = sig;
+            } else {
+              signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
+            }
           } else {
             const sig = await window.arweaveWallet.signature(
               data,
@@ -435,11 +445,16 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
         // Convert string to ArrayBuffer
         const encoder = new TextEncoder();
         const data = encoder.encode(message);
-        const buffer = data.buffer;
+        // Ensure we have a proper ArrayBuffer, not ArrayBufferLike
+        const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
         
         if (window.arweaveWallet.signMessage) {
-          const sig = await window.arweaveWallet.signMessage(buffer);
-          signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
+          const sig = await window.arweaveWallet.signMessage(buffer as ArrayBuffer);
+          if (typeof sig === 'string') {
+            signature = sig;
+          } else {
+            signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
+          }
         } else {
           const sig = await window.arweaveWallet.signature(
             data,
@@ -525,12 +540,17 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
       // Convert string to ArrayBuffer
       const encoder = new TextEncoder();
       const data = encoder.encode(message);
-      const buffer = data.buffer;
+      // Ensure we have a proper ArrayBuffer, not ArrayBufferLike
+      const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
       
       // Try new API first
       if (window.arweaveWallet.signMessage) {
-        const sig = await window.arweaveWallet.signMessage(buffer);
-        signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
+        const sig = await window.arweaveWallet.signMessage(buffer as ArrayBuffer);
+        if (typeof sig === 'string') {
+          signature = sig;
+        } else {
+          signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
+        }
       } else {
         // Fallback to old API
         const sig = await window.arweaveWallet.signature(
