@@ -23,13 +23,20 @@ export function useAuth(requireAuth = true) {
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
-              .single();
+              .single() as {
+                data: {
+                  full_name?: string;
+                  name?: string;
+                  public_key?: string;
+                  [key: string]: any;
+                } | null;
+              };
 
             setUser({
               id: session.user.id,
               email: session.user.email || '',
-              name: profile?.full_name || profile?.name || session.user.email || '',
-              publicKey: profile?.public_key || '',
+              name: (profile?.full_name as string) || (profile?.name as string) || session.user.email || '',
+              publicKey: (profile?.public_key as string) || '',
               createdAt: new Date(session.user.created_at),
               updatedAt: new Date(),
             });

@@ -23,14 +23,22 @@ export function useAuthStateListener() {
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
-            .single();
+            .single() as {
+              data: {
+                full_name?: string;
+                email?: string;
+                public_key?: string;
+                [key: string]: any;
+              } | null;
+              error: any;
+            };
 
           // Set user even if profile doesn't exist yet
           setUser({
             id: session.user.id,
             email: session.user.email || '',
-            name: profile?.full_name || profile?.email || session.user.email || '',
-            publicKey: profile?.public_key || '',
+            name: (profile?.full_name as string) || (profile?.email as string) || session.user.email || '',
+            publicKey: (profile?.public_key as string) || '',
             createdAt: new Date(session.user.created_at),
             updatedAt: new Date(),
           });
@@ -57,14 +65,22 @@ export function useAuthStateListener() {
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
-            .single();
+            .single() as {
+              data: {
+                full_name?: string;
+                email?: string;
+                public_key?: string;
+                [key: string]: any;
+              } | null;
+              error: any;
+            };
 
           // Set user even if profile doesn't exist yet
           setUser({
             id: session.user.id,
             email: session.user.email || '',
-            name: profile?.full_name || profile?.email || session.user.email || '',
-            publicKey: profile?.public_key || '',
+            name: (profile?.full_name as string) || (profile?.email as string) || session.user.email || '',
+            publicKey: (profile?.public_key as string) || '',
             createdAt: new Date(session.user.created_at),
             updatedAt: new Date(),
           });

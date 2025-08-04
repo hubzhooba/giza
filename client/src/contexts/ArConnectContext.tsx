@@ -151,7 +151,15 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
         .from('profiles')
         .select('*')
         .eq('wallet_address', address)
-        .maybeSingle();
+        .maybeSingle() as { 
+          data: { 
+            username?: string; 
+            display_name?: string; 
+            wallet_balance?: number;
+            [key: string]: any;
+          } | null; 
+          error: any 
+        };
       
       if (fetchError && fetchError.code !== 'PGRST116') {
         console.error('Error fetching profile:', fetchError);
@@ -160,8 +168,8 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
       if (profile) {
         // Existing user
         setWalletAddress(address);
-        setUsernameState(profile.username);
-        setDisplayName(profile.display_name || profile.username);
+        setUsernameState(profile.username || null);
+        setDisplayName(profile.display_name || profile.username || null);
         setIsUsernameSet(!!profile.username);
         setIsConnected(true);
         

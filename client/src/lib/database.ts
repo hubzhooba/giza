@@ -105,45 +105,45 @@ export class DatabaseService {
         // Use full_name with proper fallback chain
         // First try profile data, then room data, then email, then default
         const creatorName = creatorProfile?.full_name || 
-                           roomData.creator_name ||
-                           roomData.creator_email?.split('@')[0] ||
-                           creatorProfile?.email?.split('@')[0] || 
+                           (roomData.creator_name as string) ||
+                           (typeof roomData.creator_email === 'string' ? roomData.creator_email.split('@')[0] : '') ||
+                           (typeof creatorProfile?.email === 'string' ? creatorProfile.email.split('@')[0] : '') || 
                            'Room Creator';
         
         const creatorEmail = creatorProfile?.email || roomData.creator_email || '';
         
         participants.push({
-          userId: roomData.creator_id,
-          email: creatorEmail,
-          name: creatorName,
+          userId: roomData.creator_id as string,
+          email: creatorEmail as string,
+          name: creatorName as string,
           role: 'creator',
           hasJoined: true,
-          joinedAt: new Date(roomData.created_at),
+          joinedAt: new Date(roomData.created_at as string),
         });
       }
       
       // Add invitee if exists - use the data already in rooms table
       if (roomData.invitee_id) {
         participants.push({
-          userId: roomData.invitee_id,
-          email: roomData.invitee_email || '',
-          name: roomData.invitee_name || roomData.invitee_email || 'Invitee',
+          userId: roomData.invitee_id as string,
+          email: (roomData.invitee_email as string) || '',
+          name: (roomData.invitee_name as string) || (roomData.invitee_email as string) || 'Invitee',
           role: 'signer',
           hasJoined: true,
-          joinedAt: roomData.invitee_joined_at ? new Date(roomData.invitee_joined_at) : undefined,
+          joinedAt: roomData.invitee_joined_at ? new Date(roomData.invitee_joined_at as string) : undefined,
         });
       }
       
       return {
-        id: roomData.external_id,
-        name: roomData.name,
-        creatorId: roomData.creator_id,
-        inviteeId: roomData.invitee_id,
+        id: roomData.external_id as string,
+        name: roomData.name as string,
+        creatorId: roomData.creator_id as string,
+        inviteeId: roomData.invitee_id as string,
         participants,
-        encryptionKey: roomData.encryption_key,
-        createdAt: new Date(roomData.created_at),
-        updatedAt: new Date(roomData.updated_at),
-        status: roomData.status,
+        encryptionKey: roomData.encryption_key as string,
+        createdAt: new Date(roomData.created_at as string),
+        updatedAt: new Date(roomData.updated_at as string),
+        status: roomData.status as 'pending' | 'active' | 'completed' | 'cancelled',
         contractData: {},
       };
     } catch (error) {
@@ -164,15 +164,15 @@ export class DatabaseService {
 
     // Transform database records to SecureRoom objects
     return (data || []).map(room => ({
-      id: room.external_id,
-      name: room.name,
-      creatorId: room.creator_id,
-      inviteeId: room.invitee_id,
+      id: room.external_id as string,
+      name: room.name as string,
+      creatorId: room.creator_id as string,
+      inviteeId: room.invitee_id as string,
       participants: [], // Will be populated separately if needed
-      encryptionKey: room.encryption_key,
-      createdAt: new Date(room.created_at),
-      updatedAt: new Date(room.updated_at),
-      status: room.status,
+      encryptionKey: room.encryption_key as string,
+      createdAt: new Date(room.created_at as string),
+      updatedAt: new Date(room.updated_at as string),
+      status: room.status as 'pending' | 'active' | 'completed' | 'cancelled',
       contractData: {}, // Load from documents table if needed
       isCreator: room.creator_id === userId,
       isInvitee: room.invitee_id === userId,
@@ -220,9 +220,13 @@ export class DatabaseService {
       .from('rooms')
       .select('id')
       .eq('external_id', roomId)
-      .single();
+      .single() as {
+        data: { id: string } | null;
+        error: any;
+      };
 
     if (roomError) throw roomError;
+    if (!roomData) throw new Error('Room not found');
 
     const { data, error } = await supabase
       .from('documents')
@@ -233,17 +237,17 @@ export class DatabaseService {
     if (error) throw error;
 
     return (data || []).map(doc => ({
-      id: doc.external_id,
+      id: doc.external_id as string,
       roomId: roomId,
-      name: doc.name,
-      type: doc.type,
-      arweaveId: doc.arweave_id,
-      encryptedContent: doc.encrypted_content,
-      fields: doc.fields,
+      name: doc.name as string,
+      type: doc.type as 'contract' | 'invoice' | undefined,
+      arweaveId: doc.arweave_id as string,
+      encryptedContent: doc.encrypted_content as string,
+      fields: doc.fields as any,
       signatures: [],
-      status: doc.status,
-      createdAt: new Date(doc.created_at),
-      updatedAt: new Date(doc.updated_at),
+      status: doc.status as 'draft' | 'pending_signatures' | 'signed' | 'rejected',
+      createdAt: new Date(doc.created_at as string),
+      updatedAt: new Date(doc.updated_at as string),
     }));
   }
 
@@ -256,22 +260,38 @@ export class DatabaseService {
         rooms!inner(creator_id, external_id)
       `)
       .eq('rooms.creator_id', userId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false }) as {
+        data: Array<{
+          external_id: string;
+          name: string;
+          type?: string;
+          arweave_id?: string;
+          encrypted_content?: string;
+          fields?: any;
+          status: string;
+          created_at: string;
+          updated_at: string;
+          rooms: {
+            external_id: string;
+          };
+        }> | null;
+        error: any;
+      };
 
     if (error) throw error;
 
     return (data || []).map(doc => ({
-      id: doc.external_id,
-      roomId: doc.rooms.external_id,
-      name: doc.name,
-      type: doc.type,
-      arweaveId: doc.arweave_id,
-      encryptedContent: doc.encrypted_content,
-      fields: doc.fields,
+      id: doc.external_id as string,
+      roomId: doc.rooms.external_id as string,
+      name: doc.name as string,
+      type: doc.type as 'contract' | 'invoice' | undefined,
+      arweaveId: doc.arweave_id as string,
+      encryptedContent: doc.encrypted_content as string,
+      fields: doc.fields as any,
       signatures: [],
-      status: doc.status,
-      createdAt: new Date(doc.created_at),
-      updatedAt: new Date(doc.updated_at),
+      status: doc.status as 'draft' | 'pending_signatures' | 'signed' | 'rejected',
+      createdAt: new Date(doc.created_at as string),
+      updatedAt: new Date(doc.updated_at as string),
     }));
   }
 
@@ -311,44 +331,44 @@ export class DatabaseService {
       
       // Add creator
       if (room.creator_id) {
-        const creatorProfile = creatorProfiles[room.creator_id];
+        const creatorProfile = creatorProfiles[room.creator_id as string];
         // Use full_name with proper fallback chain
         const creatorName = creatorProfile?.full_name || 
-                           creatorProfile?.email?.split('@')[0] || 
+                           (typeof creatorProfile?.email === 'string' ? creatorProfile.email.split('@')[0] : '') || 
                            'Room Creator';
         
         participants.push({
-          userId: room.creator_id,
+          userId: room.creator_id as string,
           email: creatorProfile?.email || '',
           name: creatorName,
           role: 'creator',
           hasJoined: true,
-          joinedAt: new Date(room.created_at),
+          joinedAt: new Date(room.created_at as string),
         });
       }
       
       // Add invitee if exists
       if (room.invitee_id) {
         participants.push({
-          userId: room.invitee_id,
-          email: room.invitee_email || '',
-          name: room.invitee_name || room.invitee_email || 'Invitee',
+          userId: room.invitee_id as string,
+          email: (room.invitee_email as string) || '',
+          name: (room.invitee_name as string) || (room.invitee_email as string) || 'Invitee',
           role: 'signer',
           hasJoined: true,
-          joinedAt: room.invitee_joined_at ? new Date(room.invitee_joined_at) : undefined,
+          joinedAt: room.invitee_joined_at ? new Date(room.invitee_joined_at as string) : undefined,
         });
       }
       
       return {
-        id: room.external_id,
-        name: room.name,
-        creatorId: room.creator_id,
-        inviteeId: room.invitee_id,
+        id: room.external_id as string,
+        name: room.name as string,
+        creatorId: room.creator_id as string,
+        inviteeId: room.invitee_id as string,
         participants,
-        encryptionKey: room.encryption_key,
-        status: room.status,
-        createdAt: new Date(room.created_at),
-        updatedAt: new Date(room.updated_at),
+        encryptionKey: room.encryption_key as string,
+        status: room.status as 'pending' | 'active' | 'completed' | 'cancelled',
+        createdAt: new Date(room.created_at as string),
+        updatedAt: new Date(room.updated_at as string),
       };
     });
   }
