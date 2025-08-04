@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useStore } from '@/store/useStore';
+import { withArConnectAuth } from '@/contexts/ArConnectContext';
 import DocumentUpload from '@/components/DocumentUpload';
 import DocumentViewer from '@/components/DocumentViewer';
 import { 
@@ -9,14 +10,13 @@ import {
   ArrowRight, Clock, Lock, Hash, RefreshCw 
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { ProtectedPage } from '@/components/ProtectedPage';
 import { supabase } from '@/lib/supabase';
 import { DatabaseService } from '@/lib/database';
 import { useRealtimeRoom } from '@/hooks/useRealtimeRoom';
 
 type TentStep = 'invite' | 'contract' | 'payment' | 'complete';
 
-export default function TentDetail() {
+function TentDetail() {
   const router = useRouter();
   const { id } = router.query;
   const { rooms, documents, user, loadDocuments, loadRooms } = useStore();
@@ -75,13 +75,11 @@ export default function TentDetail() {
   
   if (!tent || !user) {
     return (
-      <ProtectedPage>
-        <DashboardLayout>
-          <div className="text-center py-12">
-            <p className="text-gray-500">Tent not found</p>
-          </div>
-        </DashboardLayout>
-      </ProtectedPage>
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <p className="text-gray-500">Tent not found</p>
+        </div>
+      </DashboardLayout>
     );
   }
 
@@ -143,8 +141,7 @@ export default function TentDetail() {
   ];
 
   return (
-    <ProtectedPage>
-      <DashboardLayout>
+    <DashboardLayout>
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -473,6 +470,7 @@ export default function TentDetail() {
           </div>
         </div>
       </DashboardLayout>
-    </ProtectedPage>
   );
 }
+
+export default withArConnectAuth(TentDetail);

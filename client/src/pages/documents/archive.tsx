@@ -3,13 +3,14 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import DashboardLayout from '@/components/DashboardLayout';
 import DocumentQuery from '@/components/DocumentQuery';
+import { withArConnectAuth } from '@/contexts/ArConnectContext';
 import { StoarService } from '@/lib/stoar';
 import { handleStoarError } from '@/lib/stoar-error-handler';
 import { FileText, Download, Eye, Info } from 'lucide-react';
 import type { QueryResult } from '@stoar/sdk';
 import toast from 'react-hot-toast';
 
-export default function DocumentArchive() {
+function DocumentArchive() {
   const router = useRouter();
   const [selectedDocument, setSelectedDocument] = useState<QueryResult | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -205,3 +206,5 @@ export default function DocumentArchive() {
     </DashboardLayout>
   );
 }
+
+export default withArConnectAuth(DocumentArchive);
