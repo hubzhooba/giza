@@ -188,15 +188,18 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
       // Sign authentication message
       let signature: string;
       try {
-        // Convert string to ArrayBuffer
-        const encoder = new TextEncoder();
-        const data = encoder.encode(authMessage);
-        // Ensure we have a proper ArrayBuffer, not ArrayBufferLike
-        const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-        
         // Try new API first
         if (window.arweaveWallet.signMessage) {
-          const sig = await window.arweaveWallet.signMessage(buffer as ArrayBuffer);
+          // Convert string to Uint8Array
+          const encoder = new TextEncoder();
+          const data = encoder.encode(authMessage);
+          
+          // Create a new ArrayBuffer and copy the data
+          const buffer = new ArrayBuffer(data.length);
+          const view = new Uint8Array(buffer);
+          view.set(data);
+          
+          const sig = await window.arweaveWallet.signMessage(buffer);
           if (typeof sig === 'string') {
             signature = sig;
           } else {
@@ -204,6 +207,8 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           // Fallback to old API
+          const encoder = new TextEncoder();
+          const data = encoder.encode(authMessage);
           const sig = await window.arweaveWallet.signature(
             data,
             {
@@ -367,20 +372,25 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
         let signature: string;
         
         try {
-          // Convert string to ArrayBuffer
-          const encoder = new TextEncoder();
-          const data = encoder.encode(updateMessage);
-          // Ensure we have a proper ArrayBuffer, not ArrayBufferLike
-          const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-          
           if (window.arweaveWallet.signMessage) {
-            const sig = await window.arweaveWallet.signMessage(buffer as ArrayBuffer);
+            // Convert string to Uint8Array
+            const encoder = new TextEncoder();
+            const data = encoder.encode(updateMessage);
+            
+            // Create a new ArrayBuffer and copy the data
+            const buffer = new ArrayBuffer(data.length);
+            const view = new Uint8Array(buffer);
+            view.set(data);
+            
+            const sig = await window.arweaveWallet.signMessage(buffer);
             if (typeof sig === 'string') {
               signature = sig;
             } else {
               signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
             }
           } else {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(updateMessage);
             const sig = await window.arweaveWallet.signature(
               data,
               { name: "RSA-PSS", saltLength: 32 }
@@ -442,20 +452,25 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
       let signature: string;
       
       try {
-        // Convert string to ArrayBuffer
-        const encoder = new TextEncoder();
-        const data = encoder.encode(message);
-        // Ensure we have a proper ArrayBuffer, not ArrayBufferLike
-        const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-        
         if (window.arweaveWallet.signMessage) {
-          const sig = await window.arweaveWallet.signMessage(buffer as ArrayBuffer);
+          // Convert string to Uint8Array
+          const encoder = new TextEncoder();
+          const data = encoder.encode(message);
+          
+          // Create a new ArrayBuffer and copy the data
+          const buffer = new ArrayBuffer(data.length);
+          const view = new Uint8Array(buffer);
+          view.set(data);
+          
+          const sig = await window.arweaveWallet.signMessage(buffer);
           if (typeof sig === 'string') {
             signature = sig;
           } else {
             signature = btoa(Array.from(new Uint8Array(sig), b => String.fromCharCode(b)).join(''));
           }
         } else {
+          const encoder = new TextEncoder();
+          const data = encoder.encode(message);
           const sig = await window.arweaveWallet.signature(
             data,
             { name: "RSA-PSS", saltLength: 32 }
@@ -537,15 +552,18 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       let signature: string;
       
-      // Convert string to ArrayBuffer
-      const encoder = new TextEncoder();
-      const data = encoder.encode(message);
-      // Ensure we have a proper ArrayBuffer, not ArrayBufferLike
-      const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-      
       // Try new API first
       if (window.arweaveWallet.signMessage) {
-        const sig = await window.arweaveWallet.signMessage(buffer as ArrayBuffer);
+        // Convert string to Uint8Array
+        const encoder = new TextEncoder();
+        const data = encoder.encode(message);
+        
+        // Create a new ArrayBuffer and copy the data
+        const buffer = new ArrayBuffer(data.length);
+        const view = new Uint8Array(buffer);
+        view.set(data);
+        
+        const sig = await window.arweaveWallet.signMessage(buffer);
         if (typeof sig === 'string') {
           signature = sig;
         } else {
@@ -553,6 +571,8 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         // Fallback to old API
+        const encoder = new TextEncoder();
+        const data = encoder.encode(message);
         const sig = await window.arweaveWallet.signature(
           data,
           {

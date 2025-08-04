@@ -422,17 +422,21 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // Convert string to ArrayBuffer
-      const encoder = new TextEncoder();
-      const data = encoder.encode(message);
-      // Ensure we have a proper ArrayBuffer, not ArrayBufferLike
-      const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-      
       // Use the new signMessage API if available
       if (window.arweaveWallet.signMessage) {
-        // The new API expects ArrayBuffer, not string
-        const signature = await window.arweaveWallet.signMessage(buffer as ArrayBuffer);
-        // Convert ArrayBuffer signature to base64 string
+        // Convert string to Uint8Array
+        const encoder = new TextEncoder();
+        const data = encoder.encode(message);
+        
+        // Create a new ArrayBuffer and copy the data
+        const buffer = new ArrayBuffer(data.length);
+        const view = new Uint8Array(buffer);
+        view.set(data);
+        
+        // The new API expects ArrayBuffer
+        const signature = await window.arweaveWallet.signMessage(buffer);
+        
+        // Convert signature to base64 string
         if (typeof signature === 'string') {
           return signature;
         }
@@ -441,6 +445,8 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Fallback to old API
         console.warn('Using deprecated signature API');
+        const encoder = new TextEncoder();
+        const data = encoder.encode(message);
         const signature = await window.arweaveWallet.signature(
           data,
           {
