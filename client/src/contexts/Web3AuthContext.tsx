@@ -215,11 +215,15 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
       }));
       
       // Check if user exists in database
-      const { data: profile } = await supabase
+      const { data: profile, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
         .eq('wallet_address', address)
-        .single();
+        .maybeSingle();
+      
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching profile:', fetchError);
+      }
       
       if (profile) {
         // Existing user
@@ -257,19 +261,21 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         // New user - create profile with public key
-        const { error } = await supabase
+        const { data: newProfile, error: insertError } = await supabase
           .from('profiles')
           .insert({
             wallet_address: address,
             public_key: publicKey,
             name: `User ${address.substring(0, 8)}`,
-            email: `${address.toLowerCase()}@arweave.wallet`,
+            // Don't require email for wallet users
             auth_signature: signature,
             auth_nonce: nonce,
             last_login: new Date().toISOString()
-          });
+          })
+          .select()
+          .single();
         
-        if (!error) {
+        if (!insertError && newProfile) {
           setWalletAddress(address);
           setAuthToken(authToken);
           setIsConnected(true);
@@ -292,6 +298,7 @@ export function Web3AuthProvider({ children }: { children: React.ReactNode }) {
           toast.success('Welcome! Please set your username.');
           router.push('/onboarding');
         } else {
+          console.error('Profile creation error:', insertError);
           throw new Error('Failed to create profile');
         }
       }

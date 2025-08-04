@@ -132,11 +132,15 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('arweave_wallet_address', address);
       
       // Check if user exists in database
-      const { data: profile } = await supabase
+      const { data: profile, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
         .eq('wallet_address', address)
-        .single();
+        .maybeSingle();
+      
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching profile:', fetchError);
+      }
       
       if (profile) {
         // Existing user
@@ -162,20 +166,23 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         // New user - create profile
-        const { error } = await supabase
+        const { data: newProfile, error: insertError } = await supabase
           .from('profiles')
           .insert({
             wallet_address: address,
             name: `User ${address.substring(0, 8)}`,
-            email: `${address.toLowerCase()}@wallet.local`
-          });
+            // Don't set email as it's not required for wallet users
+          })
+          .select()
+          .single();
         
-        if (!error) {
+        if (!insertError && newProfile) {
           setWalletAddress(address);
           setIsConnected(true);
           toast.success('Welcome! Please set your username.');
           router.push('/onboarding');
         } else {
+          console.error('Profile creation error:', insertError);
           throw new Error('Failed to create profile');
         }
       }
