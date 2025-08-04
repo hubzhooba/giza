@@ -50,13 +50,16 @@ function NewTent() {
         // Navigate immediately for better UX
         router.push(`/tents/${roomId}`);
         
+        // For wallet users, use wallet address as creator ID
+        const creatorId = walletAddress || user.id;
+        
         const room: SecureRoom = {
           id: roomId,
           name: data.name,
-          creatorId: user.id,
+          creatorId: creatorId,
           creatorWallet: walletAddress || undefined,
           participants: [{
-            userId: user.id,
+            userId: creatorId,
             email: user.email,
             name: user.name,
             walletAddress: walletAddress || undefined,

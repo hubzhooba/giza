@@ -61,7 +61,15 @@ export class DatabaseService {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('DatabaseService.saveRoom error:', error);
+      // If it's a foreign key constraint error, log more details
+      if (error.code === '23503') {
+        console.error('Foreign key constraint error. Room data:', roomData);
+        console.error('This usually means creator_id references a non-existent user.');
+      }
+      throw error;
+    }
     return data;
   }
 

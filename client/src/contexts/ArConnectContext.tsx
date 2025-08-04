@@ -107,17 +107,16 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
             setIsUsernameSet(!!profile?.username);
             setIsConnected(true);
             
-            // Set user in global store for tent creation
-            if (profile) {
-              setUser({
-                id: profile.id || storedWallet,
-                email: profile.email || `${storedWallet.substring(0, 8)}...${storedWallet.slice(-6)}@arweave`,
-                name: profile.display_name || profile.username || `${storedWallet.substring(0, 8)}...${storedWallet.slice(-6)}`,
-                publicKey: await window.arweaveWallet.getActivePublicKey(),
-                createdAt: profile.created_at ? new Date(profile.created_at) : new Date(),
-                updatedAt: new Date(),
-              });
-            }
+            // Always set user in global store for tent creation
+            const publicKey = await window.arweaveWallet.getActivePublicKey();
+            setUser({
+              id: storedWallet, // Always use wallet address as ID for wallet users
+              email: profile?.email || `${storedWallet.substring(0, 8)}...${storedWallet.slice(-6)}@arweave`,
+              name: profile?.display_name || profile?.username || `${storedWallet.substring(0, 8)}...${storedWallet.slice(-6)}`,
+              publicKey: publicKey,
+              createdAt: profile?.created_at ? new Date(profile.created_at) : new Date(),
+              updatedAt: new Date(),
+            });
             
             await refreshBalanceInternal(storedWallet);
           } else {
@@ -205,7 +204,7 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
         
         // Set user in global store for tent creation
         setUser({
-          id: profile.id || address,
+          id: address, // Always use wallet address as ID for wallet users
           email: profile.email || `${address.substring(0, 8)}...${address.slice(-6)}@arweave`,
           name: profile.display_name || profile.username || `${address.substring(0, 8)}...${address.slice(-6)}`,
           publicKey: publicKey,
@@ -254,7 +253,7 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
           
           // Set user in global store for tent creation
           setUser({
-            id: newProfile.id || address,
+            id: address, // Always use wallet address as ID for wallet users
             email: newProfile.email || `${address.substring(0, 8)}...${address.slice(-6)}@arweave`,
             name: newProfile.display_name || newProfile.username || `${address.substring(0, 8)}...${address.slice(-6)}`,
             publicKey: publicKey,
@@ -266,7 +265,21 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
           router.push('/onboarding', undefined, { shallow: true });
         } else {
           console.error('Profile creation error:', insertError);
-          throw new Error('Failed to create profile');
+          // Even if profile creation fails, set user with wallet info
+          setWalletAddress(address);
+          setIsConnected(true);
+          
+          setUser({
+            id: address,
+            email: `${address.substring(0, 8)}...${address.slice(-6)}@arweave`,
+            name: `${address.substring(0, 8)}...${address.slice(-6)}`,
+            publicKey: publicKey,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+          
+          toast.success('Connected with wallet!');
+          router.push('/dashboard', undefined, { shallow: true });
         }
       }
       
