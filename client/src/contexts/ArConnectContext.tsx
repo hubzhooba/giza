@@ -47,23 +47,29 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
     checkSession();
   }, []);
 
+  // Track if we're already disconnecting to prevent loops
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+
   // Listen for wallet disconnect events
   useEffect(() => {
     if (!window.arweaveWallet) return;
 
-    const handleDisconnect = () => {
-      disconnect();
+    const handleWalletSwitch = () => {
+      // Only disconnect if we're connected and not already disconnecting
+      if (isConnected && !isDisconnecting) {
+        disconnect();
+      }
     };
 
     // Listen for ArConnect events
     window.addEventListener('arweaveWalletLoaded', checkSession);
-    window.addEventListener('walletSwitch', handleDisconnect);
+    window.addEventListener('walletSwitch', handleWalletSwitch);
     
     return () => {
       window.removeEventListener('arweaveWalletLoaded', checkSession);
-      window.removeEventListener('walletSwitch', handleDisconnect);
+      window.removeEventListener('walletSwitch', handleWalletSwitch);
     };
-  }, []);
+  }, [isConnected, isDisconnecting]);
 
   // Check for active session
   const checkSession = async () => {
@@ -211,6 +217,11 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
 
   // Disconnect wallet
   const disconnect = () => {
+    // Prevent multiple disconnect calls
+    if (isDisconnecting || !isConnected) return;
+    
+    setIsDisconnecting(true);
+    
     // Clear session
     localStorage.removeItem('arweave_wallet_address');
     localStorage.removeItem('arweave_username');
@@ -223,14 +234,25 @@ export function ArConnectProvider({ children }: { children: React.ReactNode }) {
     setIsUsernameSet(false);
     setBalance(null);
     
-    // Disconnect from ArConnect
-    if (window.arweaveWallet) {
-      window.arweaveWallet.disconnect();
+    // Disconnect from ArConnect (only if available)
+    try {
+      if (window.arweaveWallet && window.arweaveWallet.disconnect) {
+        window.arweaveWallet.disconnect();
+      }
+    } catch (error) {
+      console.error('Error disconnecting wallet:', error);
     }
+    
+    // Show success message only once
+    toast.success('Disconnected successfully');
+    
+    // Reset disconnecting flag after a delay
+    setTimeout(() => {
+      setIsDisconnecting(false);
+    }, 1000);
     
     // Redirect to home
     router.push('/');
-    toast.success('Disconnected successfully');
   };
 
   // Refresh balance
