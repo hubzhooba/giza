@@ -30,10 +30,17 @@ function MyTents() {
       const { data, error } = await supabase
         .from('rooms')
         .select('*')
-        .or(`creator_wallet.eq.${walletAddress},invitee_wallet.eq.${walletAddress}`)
+        .or(`creator_wallet.eq.${walletAddress},creator_id.eq.${walletAddress},invitee_id.eq.${walletAddress}`)
         .order('created_at', { ascending: false });
       
-      if (data) setRooms(data);
+      if (data) {
+        // Map the data to use external_id as id for consistency
+        const mappedRooms = data.map(room => ({
+          ...room,
+          id: room.external_id // Use external_id as the tent ID
+        }));
+        setRooms(mappedRooms);
+      }
     } catch (error) {
       console.error('Error loading rooms:', error);
     } finally {
