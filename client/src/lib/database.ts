@@ -35,42 +35,87 @@ export class DatabaseService {
     // For wallet users, use wallet address as creator_id if no Supabase user ID
     const creatorId = room.creatorId || creator?.walletAddress || room.creatorWallet;
     
-    // Prepare room data
-    const roomData: any = {
-      external_id: room.id,
-      name: room.name,
-      encryption_key: room.encryptionKey,
-      status: room.status,
-      created_at: room.createdAt,
-      updated_at: room.updatedAt,
-    };
-    
-    // Only include creator fields if we have a creator ID
-    if (creatorId) {
-      roomData.creator_id = creatorId;
-      roomData.creator_email = creator?.email || `${creatorId.substring(0, 8)}...@arweave`;
-      roomData.creator_name = creator?.name || `User ${creatorId.substring(0, 8)}`;
-      roomData.creator_wallet = room.creatorWallet || creator?.walletAddress;
-    }
-    
-    const { data, error } = await supabase
-      .from('rooms')
-      .upsert(roomData, {
-        onConflict: 'external_id'
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('DatabaseService.saveRoom error:', error);
-      // If it's a foreign key constraint error, log more details
-      if (error.code === '23503') {
-        console.error('Foreign key constraint error. Room data:', roomData);
-        console.error('This usually means creator_id references a non-existent user.');
+    try {
+      // Try using the RPC function first for better type handling
+      const { data: roomId, error: rpcError } = await supabase
+        .rpc('create_room', {
+          p_external_id: room.id,
+          p_name: room.name,
+          p_encryption_key: room.encryptionKey,
+          p_creator_id: creatorId || '',
+          p_creator_email: creator?.email || `${creatorId?.substring(0, 8) || 'wallet'}...@arweave`,
+          p_creator_name: creator?.name || `User ${creatorId?.substring(0, 8) || 'wallet'}`,
+          p_creator_wallet: room.creatorWallet || creator?.walletAddress || null,
+          p_description: room.description || null
+        });
+      
+      if (rpcError) {
+        console.error('DatabaseService.saveRoom RPC error:', rpcError);
+        // Fall back to direct insert
+        throw rpcError;
       }
-      throw error;
+      
+      // Return the created room data
+      const { data, error } = await supabase
+        .from('rooms')
+        .select('*')
+        .eq('id', roomId as string)
+        .single();
+      
+      if (error) throw error;
+      return data;
+      
+    } catch (rpcErr) {
+      // Fallback to direct upsert if RPC doesn't exist
+      console.log('Falling back to direct upsert');
+      
+      // Prepare room data
+      const roomData: any = {
+        external_id: room.id,
+        name: room.name,
+        encryption_key: room.encryptionKey,
+        status: room.status,
+        created_at: room.createdAt,
+        updated_at: room.updatedAt,
+      };
+      
+      // Only include creator fields if we have a creator ID
+      if (creatorId) {
+        roomData.creator_id = creatorId;
+        roomData.creator_email = creator?.email || `${creatorId.substring(0, 8)}...@arweave`;
+        roomData.creator_name = creator?.name || `User ${creatorId.substring(0, 8)}`;
+        roomData.creator_wallet = room.creatorWallet || creator?.walletAddress;
+      }
+      
+      // Add description if present
+      if (room.description) {
+        roomData.description = room.description;
+      }
+      
+      const { data, error } = await supabase
+        .from('rooms')
+        .upsert(roomData, {
+          onConflict: 'external_id'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('DatabaseService.saveRoom error:', error);
+        // If it's a foreign key constraint error, log more details
+        if (error.code === '23503') {
+          console.error('Foreign key constraint error. Room data:', roomData);
+          console.error('This usually means creator_id references a non-existent user.');
+        }
+        // If it's a type mismatch error
+        if (error.code === '42883') {
+          console.error('Type mismatch error. This usually means UUID vs TEXT issues.');
+          console.error('Room data:', roomData);
+        }
+        throw error;
+      }
+      return data;
     }
-    return data;
   }
 
   // Load a single room by external ID (for authenticated users only)
@@ -318,6 +363,21 @@ export class DatabaseService {
     // Try to get auth user first
     const { data: { user } } = await supabase.auth.getUser();
     
+    // For wallet users, try the RPC function first
+    if (!user && walletAddress) {
+      try {
+        const { data: rooms, error } = await supabase
+          .rpc('get_rooms_for_wallet', { p_wallet_address: walletAddress });
+        
+        if (!error && rooms && Array.isArray(rooms)) {
+          // Process the rooms data
+          return this.processRoomsData(rooms);
+        }
+      } catch (e) {
+        console.log('RPC function not available, falling back to direct query');
+      }
+    }
+    
     // Build query based on user type
     let query = supabase.from('rooms').select('*');
     
@@ -354,21 +414,20 @@ export class DatabaseService {
       }, {});
     }
 
+    return this.processRoomsData(rooms || []);
+  }
+
+  // Helper method to process rooms data
+  private static processRoomsData(rooms: any[]): SecureRoom[] {
     return (rooms || []).map(room => {
       const participants: Participant[] = [];
       
       // Add creator
       if (room.creator_id) {
-        const creatorProfile = creatorProfiles[room.creator_id as string];
-        // Use full_name with proper fallback chain
-        const creatorName = creatorProfile?.full_name || 
-                           (typeof creatorProfile?.email === 'string' ? creatorProfile.email.split('@')[0] : '') || 
-                           'Room Creator';
-        
         participants.push({
           userId: room.creator_id as string,
-          email: creatorProfile?.email || '',
-          name: creatorName,
+          email: room.creator_email || '',
+          name: room.creator_name || 'Room Creator',
           walletAddress: room.creator_wallet as string,
           role: 'creator',
           hasJoined: true,
