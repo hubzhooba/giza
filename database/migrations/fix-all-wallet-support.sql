@@ -16,18 +16,22 @@ BEGIN
     END LOOP;
 END $$;
 
--- STEP 2: Drop foreign key constraints on rooms
+-- STEP 2: Drop views and materialized views that depend on the columns we're changing
+DROP VIEW IF EXISTS room_member_profiles CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS room_participants_view CASCADE;
+
+-- STEP 3: Drop foreign key constraints on rooms
 ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_creator_id_fkey;
 ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_invitee_id_fkey;
 
--- STEP 3: Drop foreign key constraints on documents (if any reference rooms)
+-- STEP 4: Drop foreign key constraints on documents (if any reference rooms)
 ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_room_id_fkey;
 
--- STEP 4: Drop foreign key constraints on signatures (if any)
+-- STEP 5: Drop foreign key constraints on signatures (if any)
 ALTER TABLE signatures DROP CONSTRAINT IF EXISTS signatures_user_id_fkey;
 ALTER TABLE signatures DROP CONSTRAINT IF EXISTS signatures_document_id_fkey;
 
--- STEP 5: Now we can safely alter the column types
+-- STEP 6: Now we can safely alter the column types
 ALTER TABLE rooms 
 ALTER COLUMN creator_id TYPE TEXT USING creator_id::TEXT;
 
@@ -91,6 +95,10 @@ COMMENT ON COLUMN rooms.creator_wallet IS 'Wallet address of creator if using wa
 -- STEP 10: Ensure indexes exist (they already do based on your export)
 -- The indexes are already created, so we don't need to recreate them
 
-RAISE NOTICE 'Migration completed successfully!';
-RAISE NOTICE 'All policies have been replaced with permissive ones.';
-RAISE NOTICE 'Security is now handled at the application level.';
+-- STEP 11: Print success message
+DO $$
+BEGIN
+    RAISE NOTICE 'Migration completed successfully!';
+    RAISE NOTICE 'All policies have been replaced with permissive ones.';
+    RAISE NOTICE 'Security is now handled at the application level.';
+END $$;
