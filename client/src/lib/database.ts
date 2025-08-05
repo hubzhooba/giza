@@ -154,9 +154,11 @@ export class DatabaseService {
       // Build room object with proper participant info
       const participants: Participant[] = [];
       
-      // Get creator profile separately if needed
+      // Get creator profile separately if needed (only for UUID format IDs)
       let creatorProfile = null;
-      if (roomData.creator_id) {
+      if (roomData.creator_id && 
+          // Check if creator_id looks like a UUID
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roomData.creator_id as string)) {
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('id, email, full_name')
@@ -407,10 +409,14 @@ export class DatabaseService {
 
     if (error) throw error;
 
-    // Get all unique creator IDs to fetch profiles in batch
-    const creatorIds = Array.from(new Set((rooms || []).map(r => r.creator_id).filter(Boolean)));
+    // Get all unique creator IDs that are UUIDs to fetch profiles in batch
+    const creatorIds = Array.from(new Set(
+      (rooms || [])
+        .map(r => r.creator_id)
+        .filter(id => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id as string))
+    ));
     
-    // Fetch all creator profiles in one query
+    // Fetch all creator profiles in one query (only for UUID IDs)
     let creatorProfiles: Record<string, any> = {};
     if (creatorIds.length > 0) {
       const { data: profiles } = await supabase
