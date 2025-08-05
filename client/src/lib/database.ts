@@ -36,6 +36,7 @@ export class DatabaseService {
     const creatorId = room.creatorId || creator?.walletAddress || room.creatorWallet;
     
     try {
+      console.log('DatabaseService.saveRoom: Attempting to use simple_create_room RPC');
       // Try using the new simple RPC function
       const { data: result, error: rpcError } = await supabase
         .rpc('simple_create_room', {
@@ -55,7 +56,9 @@ export class DatabaseService {
         });
       
       if (rpcError) {
-        console.error('DatabaseService.saveRoom RPC error:', rpcError);
+        console.error('DatabaseService.saveRoom simple_create_room RPC error:', rpcError);
+        console.error('RPC error code:', rpcError.code);
+        console.error('RPC error message:', rpcError.message);
         throw rpcError;
       }
       
