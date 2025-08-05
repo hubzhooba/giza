@@ -51,7 +51,14 @@ export class DatabaseService {
       
       if (rpcError) {
         console.error('DatabaseService.saveRoom RPC error:', rpcError);
-        // Fall back to direct insert
+        // If RPC function doesn't exist (404), fall back immediately
+        if (rpcError.message?.includes('could not find the function') || 
+            rpcError.message?.includes('does not exist') ||
+            rpcError.code === '42883') {
+          console.log('RPC function not found, using direct insert');
+          throw rpcError;
+        }
+        // For other errors, also fall back
         throw rpcError;
       }
       
