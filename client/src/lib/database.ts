@@ -36,41 +36,42 @@ export class DatabaseService {
     const creatorId = room.creatorId || creator?.walletAddress || room.creatorWallet;
     
     try {
-      // Try using the RPC function first for better type handling
-      const { data: roomId, error: rpcError } = await supabase
-        .rpc('create_room', {
-          p_external_id: room.id,
-          p_name: room.name,
-          p_encryption_key: room.encryptionKey,
-          p_creator_id: creatorId || '',
-          p_creator_email: creator?.email || `${creatorId?.substring(0, 8) || 'wallet'}...@arweave`,
-          p_creator_name: creator?.name || `User ${creatorId?.substring(0, 8) || 'wallet'}`,
-          p_creator_wallet: room.creatorWallet || creator?.walletAddress || null,
-          p_description: room.description || null
+      // Try using the new simple RPC function
+      const { data: result, error: rpcError } = await supabase
+        .rpc('simple_create_room', {
+          room_data: {
+            external_id: room.id,
+            name: room.name,
+            encryption_key: room.encryptionKey,
+            creator_id: creatorId || '',
+            creator_email: creator?.email || `${creatorId?.substring(0, 8) || 'wallet'}...@arweave`,
+            creator_name: creator?.name || `User ${creatorId?.substring(0, 8) || 'wallet'}`,
+            creator_wallet: room.creatorWallet || creator?.walletAddress || null,
+            description: room.description || null,
+            status: room.status || 'pending',
+            created_at: room.createdAt.toISOString(),
+            updated_at: room.updatedAt.toISOString()
+          }
         });
       
       if (rpcError) {
         console.error('DatabaseService.saveRoom RPC error:', rpcError);
-        // If RPC function doesn't exist (404), fall back immediately
-        if (rpcError.message?.includes('could not find the function') || 
-            rpcError.message?.includes('does not exist') ||
-            rpcError.code === '42883') {
-          console.log('RPC function not found, using direct insert');
-          throw rpcError;
-        }
-        // For other errors, also fall back
         throw rpcError;
       }
       
-      // Return the created room data
-      const { data, error } = await supabase
-        .from('rooms')
-        .select('*')
-        .eq('id', roomId as string)
-        .single();
-      
-      if (error) throw error;
-      return data;
+      if (result && (result as any).success) {
+        // Return the created room data
+        const { data, error } = await supabase
+          .from('rooms')
+          .select('*')
+          .eq('id', (result as any).id)
+          .single();
+        
+        if (error) throw error;
+        return data;
+      } else {
+        throw new Error((result as any)?.error || 'Failed to create room');
+      }
       
     } catch (rpcErr) {
       // Fallback to direct upsert if RPC doesn't exist
