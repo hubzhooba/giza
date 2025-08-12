@@ -333,9 +333,9 @@ export class DatabaseService {
       .from('documents')
       .select(`
         *,
-        rooms!inner(creator_id, external_id)
+        rooms!inner(creator_id, invitee_id, external_id)
       `)
-      .eq('rooms.creator_id', userId)
+      .or(`rooms.creator_id.eq.${userId},rooms.invitee_id.eq.${userId}`)
       .order('created_at', { ascending: false }) as {
         data: Array<{
           external_id: string;

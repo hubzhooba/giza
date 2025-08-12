@@ -35,7 +35,7 @@ export class StoarService {
     this.client = new StoarClient({
       appName: config?.appName || 'Giza',
       appVersion: config?.appVersion || '1.0.0',
-      gateway: config?.gateway || 'https://defi.ao'  // Using defi.ao gateway
+      gateway: config?.gateway || 'https://arweave.net'  // Using official Arweave gateway
     });
   }
 
@@ -53,8 +53,8 @@ export class StoarService {
     }
     
     try {
-      // Use defi.ao or configured gateway
-      const gateway = process.env.NEXT_PUBLIC_ARWEAVE_GATEWAY || 'https://defi.ao';
+      // Use configured gateway or default to arweave.net
+      const gateway = process.env.NEXT_PUBLIC_ARWEAVE_GATEWAY || 'https://arweave.net';
       console.log(`Using Arweave gateway: ${gateway}`);
       
       // Reinitialize client with gateway
