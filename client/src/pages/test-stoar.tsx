@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { StoarService } from '@/lib/stoar';
 import { handleStoarError } from '@/lib/stoar-error-handler';
+import { getHealthyGateway } from '@/lib/arweave-gateways';
 import toast, { Toaster } from 'react-hot-toast';
-import { Upload, Download, Package, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { Upload, Download, Package, AlertCircle, CheckCircle, Loader2, Globe } from 'lucide-react';
 
 export default function TestStoar() {
   const [stoarInitialized, setStoarInitialized] = useState(false);
   const [walletBalance, setWalletBalance] = useState<string>('');
   const [walletAddress, setWalletAddress] = useState<string>('');
+  const [currentGateway, setCurrentGateway] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [uploadResult, setUploadResult] = useState<any>(null);
   const [batchResult, setBatchResult] = useState<any>(null);
@@ -24,6 +26,11 @@ export default function TestStoar() {
   const initializeStoar = async () => {
     setLoading(true);
     try {
+      // Get the healthy gateway first
+      const gateway = await getHealthyGateway();
+      setCurrentGateway(gateway);
+      toast.success(`Connected to gateway: ${new URL(gateway).hostname}`);
+      
       // Check if wallet key is available in environment
       const walletKey = process.env.NEXT_PUBLIC_ARWEAVE_WALLET_KEY;
       
@@ -286,6 +293,15 @@ export default function TestStoar() {
               </div>
             </div>
             <div className="flex items-center justify-between">
+              <span className="text-gray-300">Gateway</span>
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-gray-400" />
+                <span className="text-sm text-gray-400 font-mono">
+                  {currentGateway ? new URL(currentGateway).hostname : 'Not connected'}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
               <span className="text-gray-300">Wallet Address</span>
               <span className="text-sm text-gray-400 font-mono">
                 {walletAddress ? `${walletAddress.slice(0, 8)}...${walletAddress.slice(-8)}` : 'N/A'}
@@ -293,7 +309,7 @@ export default function TestStoar() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-300">Balance</span>
-              <span className="text-sm text-gray-400">{walletBalance || '0'} AR</span>
+              <span className="text-sm text-gray-400">{walletBalance === 'unknown' ? 'Balance check failed' : walletBalance || '0'} AR</span>
             </div>
           </div>
         </div>

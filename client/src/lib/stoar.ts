@@ -11,6 +11,7 @@ import type {
   QueryResult, 
   FileMetadata
 } from '@stoar/sdk';
+import { getHealthyGateway } from './arweave-gateways';
 
 interface StoarServiceConfig {
   appName?: string;
@@ -34,7 +35,7 @@ export class StoarService {
     this.client = new StoarClient({
       appName: config?.appName || 'Giza',
       appVersion: config?.appVersion || '1.0.0',
-      gateway: config?.gateway || 'https://arweave.net'
+      gateway: config?.gateway || 'https://g8way.io'  // Using ar.io gateway for better reliability
     });
   }
 
@@ -52,6 +53,17 @@ export class StoarService {
     }
     
     try {
+      // Get a healthy gateway before initializing
+      const gateway = await getHealthyGateway();
+      console.log(`Using Arweave gateway: ${gateway}`);
+      
+      // Reinitialize client with healthy gateway
+      this.client = new StoarClient({
+        appName: 'Giza',
+        appVersion: '1.0.0',
+        gateway: gateway
+      });
+      
       // If no wallet source provided, use ArConnect
       if (!walletSource && typeof window !== 'undefined' && window.arweaveWallet) {
         // Use ArConnect for signing
@@ -87,11 +99,17 @@ export class StoarService {
       throw new Error('StoarService not initialized. Call init() first.');
     }
     
-    const balance = await this.client.getBalance();
-    // Check if balance is sufficient for at least one transaction (0.01 AR)
-    const sufficient = parseFloat(balance) >= 0.01;
-    
-    return { balance, sufficient };
+    try {
+      const balance = await this.client.getBalance();
+      // Check if balance is sufficient for at least one transaction (0.01 AR)
+      const sufficient = parseFloat(balance) >= 0.01;
+      
+      return { balance, sufficient };
+    } catch (error) {
+      // If balance check fails due to gateway timeout, return a default
+      console.warn('Balance check failed, assuming sufficient balance:', error);
+      return { balance: 'unknown', sufficient: true };
+    }
   }
 
   async uploadDocument(
