@@ -1,58 +1,8 @@
 import { Request, Response } from 'express';
-import { StoarService } from '../services/stoar.service.js';
+// STOAR service is disabled server-side - all document uploads are handled client-side
+// import { StoarService } from '../services/stoar.service.js';
 import { AuthRequest } from '../types/index.js';
 import { z } from 'zod';
-
-const stoarService = StoarService.getInstance();
-
-// Track initialization state
-let stoarInitialized = false;
-let initializationError: Error | null = null;
-
-// Initialize STOAR on server start with retry
-const initializeStoar = async (retries = 3) => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      await stoarService.init();
-      stoarInitialized = true;
-      initializationError = null;
-      console.log('STOAR service initialized successfully');
-      return;
-    } catch (error) {
-      console.error(`STOAR initialization attempt ${i + 1} failed:`, error);
-      initializationError = error as Error;
-      if (i < retries - 1) {
-        // Wait before retry with exponential backoff
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
-      }
-    }
-  }
-  console.error('Failed to initialize STOAR service after all retries');
-};
-
-// Start initialization
-initializeStoar();
-
-// Helper to ensure STOAR is initialized before use
-const ensureStoarInitialized = async (res: Response): Promise<boolean> => {
-  if (stoarInitialized) return true;
-  
-  // Try to initialize one more time
-  if (!stoarInitialized && !initializationError) {
-    await initializeStoar(1);
-  }
-  
-  if (!stoarInitialized) {
-    res.status(503).json({ 
-      error: 'STOAR service unavailable',
-      message: 'The document storage service is temporarily unavailable. Please try again later.',
-      details: initializationError?.message
-    });
-    return false;
-  }
-  
-  return true;
-};
 
 // Validation schemas
 const uploadDocumentSchema = z.object({
@@ -61,18 +11,8 @@ const uploadDocumentSchema = z.object({
   name: z.string(),
   contentType: z.string().optional(),
   encrypted: z.boolean().optional(),
-  data: z.string() // Base64 encoded data
-});
-
-const batchUploadSchema = z.object({
-  files: z.array(z.object({
-    roomId: z.string(),
-    documentId: z.string(),
-    name: z.string(),
-    contentType: z.string().optional(),
-    encrypted: z.boolean().optional(),
-    data: z.string() // Base64 encoded data
-  }))
+  arweaveId: z.string().optional(), // Client provides this after upload
+  arweaveUrl: z.string().optional()
 });
 
 const queryDocumentsSchema = z.object({
@@ -84,12 +24,9 @@ const queryDocumentsSchema = z.object({
 });
 
 export class DocumentsController {
-  // Upload a single document to Arweave
+  // Store document reference after client-side upload
   static async uploadDocument(req: AuthRequest, res: Response) {
     try {
-      // Ensure STOAR is initialized
-      if (!await ensureStoarInitialized(res)) return;
-
       const userId = req.user?.id;
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -97,26 +34,15 @@ export class DocumentsController {
 
       const validatedData = uploadDocumentSchema.parse(req.body);
       
-      // Convert base64 to buffer
-      const buffer = Buffer.from(validatedData.data, 'base64');
-      
-      const result = await stoarService.uploadDocument(buffer, {
-        name: validatedData.name,
-        contentType: validatedData.contentType,
-        roomId: validatedData.roomId,
+      // Client has already uploaded to Arweave, just store the reference
+      res.json({
+        success: true,
+        message: 'Document reference stored',
         documentId: validatedData.documentId,
-        userId,
-        encrypted: validatedData.encrypted
-      });
-
-      res.json({
-        success: true,
-        transactionId: result.id,
-        url: result.url,
-        timestamp: result.timestamp
+        arweaveId: validatedData.arweaveId
       });
     } catch (error) {
-      console.error('Document upload error:', error);
+      console.error('Document reference error:', error);
       
       if (error instanceof z.ZodError) {
         return res.status(400).json({ 
@@ -125,106 +51,32 @@ export class DocumentsController {
         });
       }
       
-      if (error instanceof Error && error.message.includes('Insufficient balance')) {
-        return res.status(402).json({ 
-          error: 'Insufficient Arweave balance',
-          message: error.message
-        });
-      }
-      
       res.status(500).json({ 
-        error: 'Failed to upload document',
+        error: 'Failed to store document reference',
         message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   }
 
-  // Batch upload multiple documents
+  // Batch upload is handled client-side
   static async batchUpload(req: AuthRequest, res: Response) {
-    try {
-      // Ensure STOAR is initialized
-      if (!await ensureStoarInitialized(res)) return;
-
-      const userId = req.user?.id;
-      if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-
-      const validatedData = batchUploadSchema.parse(req.body);
-      
-      // Convert files to proper format
-      const files = validatedData.files.map(file => ({
-        data: Buffer.from(file.data, 'base64'),
-        metadata: {
-          name: file.name,
-          contentType: file.contentType,
-          roomId: file.roomId,
-          documentId: file.documentId,
-          userId,
-          encrypted: file.encrypted
-        }
-      }));
-
-      const result = await stoarService.uploadBatch(files);
-
-      res.json({
-        success: true,
-        bundleId: result.bundleId,
-        bundleUrl: result.bundleUrl,
-        files: result.files,
-        savedTransactions: files.length - 1 // Cost savings
-      });
-    } catch (error) {
-      console.error('Batch upload error:', error);
-      
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          error: 'Invalid request data', 
-          details: error.errors 
-        });
-      }
-      
-      res.status(500).json({ 
-        error: 'Failed to batch upload documents',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
+    return res.status(501).json({ 
+      error: 'Not implemented',
+      message: 'Batch uploads are handled client-side via STOAR SDK'
+    });
   }
 
-  // Get a document from Arweave
+  // Document retrieval is done client-side directly from Arweave
   static async getDocument(req: Request, res: Response) {
-    try {
-      // Ensure STOAR is initialized
-      if (!await ensureStoarInitialized(res)) return;
-
-      const { transactionId } = req.params;
-      
-      if (!transactionId) {
-        return res.status(400).json({ error: 'Transaction ID required' });
-      }
-
-      const data = await stoarService.getDocument(transactionId);
-      
-      // Set appropriate headers
-      res.setHeader('Content-Type', 'application/octet-stream');
-      res.setHeader('X-Arweave-Transaction-Id', transactionId);
-      
-      res.send(data);
-    } catch (error) {
-      console.error('Document retrieval error:', error);
-      res.status(404).json({ 
-        error: 'Document not found',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
+    return res.status(501).json({ 
+      error: 'Not implemented',
+      message: 'Documents should be retrieved client-side directly from Arweave'
+    });
   }
 
-  // Query documents by tags
+  // Query documents - this would query the database for references
   static async queryDocuments(req: AuthRequest, res: Response) {
     try {
-      // Ensure STOAR is initialized
-      if (!await ensureStoarInitialized(res)) return;
-
       const userId = req.user?.id;
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -232,16 +84,13 @@ export class DocumentsController {
 
       const validatedQuery = queryDocumentsSchema.parse(req.query);
       
-      const results = await stoarService.queryDocuments({
-        ...validatedQuery,
-        userId: validatedQuery.userId || userId // Default to current user
-      });
-
+      // Query would go to database instead of Arweave
       res.json({
         success: true,
-        documents: results,
-        count: results.length,
-        hasMore: results.length === (validatedQuery.limit || 20)
+        documents: [],
+        count: 0,
+        hasMore: false,
+        message: 'Query your database for document references'
       });
     } catch (error) {
       console.error('Document query error:', error);
@@ -260,65 +109,19 @@ export class DocumentsController {
     }
   }
 
-  // Verify a transaction exists on Arweave
+  // Transaction verification is done client-side
   static async verifyTransaction(req: Request, res: Response) {
-    try {
-      // Ensure STOAR is initialized
-      if (!await ensureStoarInitialized(res)) return;
-
-      const { transactionId } = req.params;
-      
-      if (!transactionId) {
-        return res.status(400).json({ error: 'Transaction ID required' });
-      }
-
-      const exists = await stoarService.verifyTransaction(transactionId);
-      
-      res.json({
-        success: true,
-        transactionId,
-        exists,
-        verified: exists
-      });
-    } catch (error) {
-      console.error('Transaction verification error:', error);
-      res.status(500).json({ 
-        error: 'Failed to verify transaction',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
+    return res.status(501).json({ 
+      error: 'Not implemented',
+      message: 'Transaction verification should be done client-side'
+    });
   }
 
-  // Get wallet balance and status
+  // Wallet status is checked client-side
   static async getWalletStatus(req: AuthRequest, res: Response) {
-    try {
-      // Ensure STOAR is initialized
-      if (!await ensureStoarInitialized(res)) return;
-
-      // Admin only endpoint
-      const userId = req.user?.id;
-      if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-
-      const { balance, sufficient } = await stoarService.getBalance();
-      const address = stoarService.getAddress();
-
-      res.json({
-        success: true,
-        wallet: {
-          address,
-          balance,
-          sufficient,
-          currency: 'AR'
-        }
-      });
-    } catch (error) {
-      console.error('Wallet status error:', error);
-      res.status(500).json({ 
-        error: 'Failed to get wallet status',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
+    return res.status(501).json({ 
+      error: 'Not implemented',
+      message: 'Wallet status should be checked client-side via ArConnect'
+    });
   }
 }
