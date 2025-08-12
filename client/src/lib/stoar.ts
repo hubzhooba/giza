@@ -35,7 +35,7 @@ export class StoarService {
     this.client = new StoarClient({
       appName: config?.appName || 'Giza',
       appVersion: config?.appVersion || '1.0.0',
-      gateway: config?.gateway || 'https://g8way.io'  // Using ar.io gateway for better reliability
+      gateway: config?.gateway || 'https://defi.ao'  // Using defi.ao gateway
     });
   }
 
@@ -53,11 +53,11 @@ export class StoarService {
     }
     
     try {
-      // Get a healthy gateway before initializing
-      const gateway = await getHealthyGateway();
+      // Use defi.ao or configured gateway
+      const gateway = process.env.NEXT_PUBLIC_ARWEAVE_GATEWAY || 'https://defi.ao';
       console.log(`Using Arweave gateway: ${gateway}`);
       
-      // Reinitialize client with healthy gateway
+      // Reinitialize client with gateway
       this.client = new StoarClient({
         appName: 'Giza',
         appVersion: '1.0.0',

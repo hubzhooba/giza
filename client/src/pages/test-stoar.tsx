@@ -26,10 +26,9 @@ export default function TestStoar() {
   const initializeStoar = async () => {
     setLoading(true);
     try {
-      // Get the healthy gateway first
-      const gateway = await getHealthyGateway();
+      // Set the gateway
+      const gateway = process.env.NEXT_PUBLIC_ARWEAVE_GATEWAY || 'https://defi.ao';
       setCurrentGateway(gateway);
-      toast.success(`Connected to gateway: ${new URL(gateway).hostname}`);
       
       // Check if wallet key is available in environment
       const walletKey = process.env.NEXT_PUBLIC_ARWEAVE_WALLET_KEY;
