@@ -41,24 +41,33 @@ export default function DocumentViewer({ document, room, currentUser }: Document
         if ((document as any).arweaveId) {
           setLoadingFromArweave(true);
           try {
-            // Initialize STOAR with wallet if connected
-            if (isConnected) {
-              await stoar.init(); // Will use ArConnect
+            // Try to initialize STOAR - it will handle failures gracefully
+            await stoar.init();
+            
+            // Only try to fetch if STOAR is initialized
+            if (stoar.getIsInitialized()) {
+              // Fetch from Arweave
+              const arweaveData = await stoar.getDocument((document as any).arweaveId);
+              const arweaveContent = JSON.parse(new TextDecoder().decode(arweaveData));
+              
+              encryptedData = { encrypted: arweaveContent.encrypted, nonce: arweaveContent.nonce };
+              fields = arweaveContent.fields;
+              
+              toast.success('Document loaded from Arweave');
+            } else {
+              // STOAR not initialized, fall back to local storage
+              console.warn('STOAR not initialized, using local storage');
+              encryptedData = JSON.parse(document.encryptedContent!);
             }
-            
-            // Fetch from Arweave
-            const arweaveData = await stoar.getDocument((document as any).arweaveId);
-            const arweaveContent = JSON.parse(new TextDecoder().decode(arweaveData));
-            
-            encryptedData = { encrypted: arweaveContent.encrypted, nonce: arweaveContent.nonce };
-            fields = arweaveContent.fields;
-            
-            toast.success('Document loaded from Arweave');
           } catch (error) {
             console.error('Failed to fetch from Arweave:', error);
-            toast('Loading from local storage instead', { icon: '⚠️' });
             // Fall back to local storage
-            encryptedData = JSON.parse(document.encryptedContent!);
+            if (document.encryptedContent) {
+              encryptedData = JSON.parse(document.encryptedContent);
+            } else {
+              toast.error('Document content not available');
+              return;
+            }
           } finally {
             setLoadingFromArweave(false);
           }

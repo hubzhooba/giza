@@ -41,13 +41,12 @@ export default function DocumentQuery({ roomId, userId, onDocumentSelect }: Docu
   useEffect(() => {
     const initStoar = async () => {
       try {
-        const walletKey = process.env.NEXT_PUBLIC_ARWEAVE_WALLET_KEY;
-        await stoar.init(walletKey || undefined);
-        setIsInitialized(true);
+        // Try to initialize STOAR - it will handle failures gracefully
+        await stoar.init();
+        setIsInitialized(stoar.getIsInitialized());
       } catch (error) {
-        handleStoarError(error, { operation: 'init' });
-        // Set initialized to true even on error to prevent infinite loading
-        setIsInitialized(true);
+        console.warn('STOAR initialization failed, query features disabled');
+        setIsInitialized(false);
       }
     };
 
@@ -55,6 +54,11 @@ export default function DocumentQuery({ roomId, userId, onDocumentSelect }: Docu
   }, []);
 
   const searchDocuments = async (append = false) => {
+    if (!isInitialized) {
+      toast.error('Document query is not available. Please check your wallet connection.');
+      return;
+    }
+    
     setLoading(true);
     
     try {

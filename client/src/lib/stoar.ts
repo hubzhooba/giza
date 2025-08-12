@@ -64,13 +64,28 @@ export class StoarService {
         gateway: gateway
       });
       
-      // If no wallet source provided, use ArConnect
-      if (!walletSource && typeof window !== 'undefined' && window.arweaveWallet) {
-        // Use ArConnect for signing
-        await this.client.init('use_wallet');
+      // Try to initialize with wallet
+      if (!walletSource) {
+        // Check if ArConnect is available and connected
+        if (typeof window !== 'undefined' && window.arweaveWallet) {
+          try {
+            // Check if wallet is actually connected
+            await window.arweaveWallet.getActiveAddress();
+            await this.client.init('use_wallet');
+          } catch (walletError) {
+            console.warn('ArConnect not connected, STOAR running in read-only mode');
+            // Initialize without wallet for read-only operations
+            await this.client.init();
+          }
+        } else {
+          console.warn('No wallet available, STOAR running in read-only mode');
+          // Initialize without wallet for read-only operations
+          await this.client.init();
+        }
       } else {
         await this.client.init(walletSource);
       }
+      
       this.isInitialized = true;
       
       // Initialize S3 client for compatibility
@@ -83,9 +98,14 @@ export class StoarService {
       this.isInitialized = false;
       
       if (error instanceof WalletError) {
-        throw new Error(`Wallet initialization failed: ${error.message}`);
+        console.warn(`Wallet initialization failed: ${error.message}`);
+        // Don't throw, just warn - allow read-only operations
+        return;
       }
-      throw error;
+      
+      console.error('STOAR initialization error:', error);
+      // Don't throw for initialization errors - just log them
+      // This allows the app to continue working without STOAR
     }
   }
 

@@ -25,9 +25,14 @@ function DocumentArchive() {
 
     setDownloading(true);
     try {
-      // Initialize STOAR if needed
-      const walletKey = process.env.NEXT_PUBLIC_ARWEAVE_WALLET_KEY;
-      await stoar.init(walletKey || undefined);
+      // Try to initialize STOAR - it will handle failures gracefully
+      await stoar.init();
+      
+      // Check if STOAR is initialized before trying to download
+      if (!stoar.getIsInitialized()) {
+        toast.error('Unable to connect to Arweave. Please check your wallet connection.');
+        return;
+      }
 
       // Fetch the document
       const data = await stoar.getDocument(selectedDocument.id);

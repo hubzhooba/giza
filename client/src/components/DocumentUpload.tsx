@@ -39,15 +39,23 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
   useEffect(() => {
     const initStoar = async () => {
       try {
-        // Always use ArConnect for signing in production
-        await stoar.init(); // Will use ArConnect automatically
-        setStoarInitialized(true);
+        // Try to initialize STOAR - it will handle wallet connection gracefully
+        await stoar.init();
+        setStoarInitialized(stoar.getIsInitialized());
 
-        // Check wallet balance
-        const { balance } = await stoar.checkBalance();
-        setWalletBalance(balance);
+        // Only check balance if initialized successfully
+        if (stoar.getIsInitialized()) {
+          try {
+            const { balance } = await stoar.checkBalance();
+            setWalletBalance(balance);
+          } catch (balanceError) {
+            console.warn('Could not check wallet balance:', balanceError);
+            setWalletBalance('unknown');
+          }
+        }
       } catch (error) {
-        handleStoarError(error, { operation: 'init' });
+        console.warn('STOAR initialization failed, uploads will use local storage only');
+        setStoarInitialized(false);
       }
     };
 
