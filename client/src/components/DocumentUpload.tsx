@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, FileText, X, Edit3, Sparkles, AlertCircle } from 'lucide-react';
 import { EncryptionService } from '@/lib/encryption';
-import { StoarService } from '@/lib/stoar';
+import { arweaveWalletStorage } from '@/lib/arweave-wallet-storage';
 import { handleStoarError, StoarErrorHandler } from '@/lib/stoar-error-handler';
 import { useStore } from '@/store/useStore';
 import PDFFieldEditor from './PDFFieldEditor';
@@ -31,22 +31,22 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
   const { balance } = useArConnect();
   const { uploadDocument } = useSignedAction();
   const encryption = EncryptionService.getInstance();
-  const stoar = StoarService.getInstance();
+  // arweaveWalletStorage is already a singleton
   
   const room = rooms.find(r => r.id === roomId);
 
-  // Initialize STOAR with wallet
+  // Initialize Arweave Storage with wallet
   useEffect(() => {
-    const initStoar = async () => {
+    const initStorage = async () => {
       try {
-        // Try to initialize STOAR - it will handle wallet connection gracefully
-        await stoar.init();
-        setStoarInitialized(stoar.getIsInitialized());
+        // Try to initialize Arweave Storage - it will handle wallet connection gracefully
+        await arweaveWalletStorage.init();
+        setStoarInitialized(arweaveWalletStorage.getIsInitialized());
 
         // Only check balance if initialized successfully
-        if (stoar.getIsInitialized()) {
+        if (arweaveWalletStorage.getIsInitialized()) {
           try {
-            const { balance } = await stoar.checkBalance();
+            const { balance } = await arweaveWalletStorage.checkBalance();
             setWalletBalance(balance);
           } catch (balanceError) {
             console.warn('Could not check wallet balance:', balanceError);
@@ -54,12 +54,12 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
           }
         }
       } catch (error) {
-        console.warn('STOAR initialization failed, uploads will use local storage only');
+        console.warn('Arweave storage initialization failed, uploads will use local storage only');
         setStoarInitialized(false);
       }
     };
 
-    initStoar();
+    initStorage();
   }, []);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -112,13 +112,13 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
         }
       });
 
-      // Upload to Arweave using STOAR with wallet signing
+      // Upload to Arweave using ArweaveStorage with wallet signing
       let arweaveId = '';
       let arweaveUrl = '';
       
       if (stoarInitialized) {
         const uploadResult = await uploadDocument(file.name, async () => {
-          return await stoar.uploadDocument(
+          return await arweaveWalletStorage.uploadDocument(
             encryptedDocumentData,
             {
               name: `${file.name}.encrypted`,

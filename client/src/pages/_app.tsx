@@ -1,8 +1,9 @@
 import '@/styles/globals.css';
+// Styles will be handled by the wallet kit internally
 import type { AppProps } from 'next/app';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
-import { ArConnectProvider } from '@/contexts/ArConnectContext';
+import { ArweaveWalletProvider } from '@/contexts/ArweaveWalletProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useEffect } from 'react';
 
@@ -54,9 +55,9 @@ export default function App(props: AppProps) {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <ArConnectProvider>
+        <ArweaveWalletProvider>
           <AppWithProviders {...props} />
-        </ArConnectProvider>
+        </ArweaveWalletProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

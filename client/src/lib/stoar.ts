@@ -66,14 +66,16 @@ export class StoarService {
       
       // Try to initialize with wallet
       if (!walletSource) {
-        // Check if ArConnect is available and connected
-        if (typeof window !== 'undefined' && window.arweaveWallet) {
+        // Check if wallet is connected through Arweave Wallet Kit
+        // The wallet kit will handle the connection status
+        if (typeof window !== 'undefined') {
           try {
-            // Check if wallet is actually connected
-            await window.arweaveWallet.getActiveAddress();
+            // Try to use wallet through STOAR's use_wallet mode
+            // This will work with any wallet connected via Arweave Wallet Kit
             await this.client.init('use_wallet');
+            this.isInitialized = true;
           } catch (walletError) {
-            console.warn('ArConnect not connected, STOAR running in read-only mode');
+            console.warn('Wallet not connected, STOAR running in read-only mode');
             // Don't initialize without wallet - it causes filesystem errors
             // Just mark as not initialized for read-only operations
             this.isInitialized = false;
@@ -87,15 +89,16 @@ export class StoarService {
         }
       } else {
         await this.client.init(walletSource);
+        this.isInitialized = true;
       }
       
-      this.isInitialized = true;
-      
-      // Initialize S3 client for compatibility
-      this.s3Client = new StoarS3Client(this.client, {
-        bucket: 'giza-documents',
-        region: 'us-east-1'
-      });
+      // Initialize S3 client for compatibility if initialized
+      if (this.isInitialized) {
+        this.s3Client = new StoarS3Client(this.client, {
+          bucket: 'giza-documents',
+          region: 'us-east-1'
+        });
+      }
     } catch (error) {
       // Reset initialization state on error
       this.isInitialized = false;

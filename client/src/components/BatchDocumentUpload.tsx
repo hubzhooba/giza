@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, FileText, X, Cloud, AlertCircle, Package } from 'lucide-react';
 import { EncryptionService } from '@/lib/encryption';
-import { StoarService } from '@/lib/stoar';
+import { arweaveWalletStorage } from '@/lib/arweave-wallet-storage';
 import { useStore } from '@/store/useStore';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
@@ -30,27 +30,28 @@ export default function BatchDocumentUpload({ roomId, encryptionKey, onUploadCom
   
   const { addDocument, rooms, user, addActivity } = useStore();
   const encryption = EncryptionService.getInstance();
-  const stoar = StoarService.getInstance();
+  // arweaveWalletStorage is already a singleton
   
   const room = rooms.find(r => r.id === roomId);
 
-  // Initialize STOAR
+  // Initialize Arweave Storage
   useEffect(() => {
-    const initStoar = async () => {
+    const initStorage = async () => {
       try {
-        const walletKey = process.env.NEXT_PUBLIC_ARWEAVE_WALLET_KEY;
-        await stoar.init(walletKey || undefined);
-        setStoarInitialized(true);
+        await arweaveWalletStorage.init();
+        setStoarInitialized(arweaveWalletStorage.getIsInitialized());
 
-        const { balance } = await stoar.checkBalance();
-        setWalletBalance(balance);
+        if (arweaveWalletStorage.getIsInitialized()) {
+          const { balance } = await arweaveWalletStorage.checkBalance();
+          setWalletBalance(balance);
+        }
       } catch (error) {
-        console.error('Failed to initialize STOAR:', error);
+        console.error('Failed to initialize Arweave storage:', error);
         toast.error('Failed to connect to Arweave wallet');
       }
     };
 
-    initStoar();
+    initStorage();
   }, []);
 
   // Calculate estimated cost based on file sizes
@@ -102,7 +103,7 @@ export default function BatchDocumentUpload({ roomId, encryptionKey, onUploadCom
 
     try {
       // Enable auto-batching for efficient upload
-      stoar.enableAutoBatching({
+      arweaveWalletStorage.enableAutoBatching({
         timeout: 60000, // 1 minute timeout
         maxFiles: files.length,
         maxBytes: 100 * 1024 * 1024 // 100MB max
@@ -132,8 +133,8 @@ export default function BatchDocumentUpload({ roomId, encryptionKey, onUploadCom
             }
           });
 
-          // Upload to Arweave using STOAR (will be batched automatically)
-          const uploadResult = await stoar.uploadDocument(
+          // Upload to Arweave using ArweaveStorage (will be batched automatically)
+          const uploadResult = await arweaveWalletStorage.uploadDocument(
             encryptedDocumentData,
             {
               name: `${file.name}.encrypted`,
@@ -149,7 +150,6 @@ export default function BatchDocumentUpload({ roomId, encryptionKey, onUploadCom
                 'Batch-Upload': 'true',
                 'User-ID': user?.id || 'unknown'
               },
-              batch: true, // Enable batching for this upload
               progress: (progress) => {
                 console.log(`File ${index + 1}/${files.length}: ${progress}%`);
               }
@@ -188,7 +188,7 @@ export default function BatchDocumentUpload({ roomId, encryptionKey, onUploadCom
       await new Promise(resolve => setTimeout(resolve, 100));
       
       // Commit the batch
-      const batchResult = await stoar.disableAutoBatching();
+      const batchResult = await arweaveWalletStorage.disableAutoBatching();
       
       if (batchResult) {
         toast.success(`Batch uploaded successfully! Bundle ID: ${batchResult.bundleId}`);

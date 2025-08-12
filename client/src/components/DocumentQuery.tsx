@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Search, FileText, Cloud, Calendar, User, Tag } from 'lucide-react';
-import { stoarWrapper } from '@/lib/stoar-wrapper';
+import { arweaveWalletStorage } from '@/lib/arweave-wallet-storage';
 import { useStore } from '@/store/useStore';
 import { handleStoarError } from '@/lib/stoar-error-handler';
-import type { QueryResult } from '@stoar/sdk';
 import toast from 'react-hot-toast';
 import { useArConnect } from '@/contexts/ArConnectContext';
 
 interface DocumentQueryProps {
   roomId?: string;
   userId?: string;
-  onDocumentSelect?: (doc: QueryResult) => void;
+  onDocumentSelect?: (doc: any) => void;
 }
 
 interface FilterOptions {
@@ -23,7 +22,7 @@ interface FilterOptions {
 }
 
 export default function DocumentQuery({ roomId, userId, onDocumentSelect }: DocumentQueryProps) {
-  const [results, setResults] = useState<QueryResult[]>([]);
+  const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<FilterOptions>({
     roomId,
@@ -42,8 +41,8 @@ export default function DocumentQuery({ roomId, userId, onDocumentSelect }: Docu
   useEffect(() => {
     const initStoar = async () => {
       if (isConnected) {
-        const initialized = await stoarWrapper.initWithWallet();
-        setIsInitialized(initialized);
+        await arweaveWalletStorage.init();
+        setIsInitialized(arweaveWalletStorage.getIsInitialized());
       } else {
         setIsInitialized(false);
       }
@@ -74,7 +73,7 @@ export default function DocumentQuery({ roomId, userId, onDocumentSelect }: Docu
         queryOptions.userId = filters.userId;
       }
 
-      const queryResults = await stoarWrapper.queryDocuments(queryOptions);
+      const queryResults = await arweaveWalletStorage.queryDocuments(queryOptions) || [];
       
       if (append) {
         setResults(prev => [...prev, ...queryResults]);

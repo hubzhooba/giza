@@ -4,20 +4,19 @@ import Head from 'next/head';
 import DashboardLayout from '@/components/DashboardLayout';
 import DocumentQuery from '@/components/DocumentQuery';
 import { withArConnectAuth } from '@/contexts/ArConnectContext';
-import { stoarWrapper } from '@/lib/stoar-wrapper';
+import { arweaveWalletStorage } from '@/lib/arweave-wallet-storage';
 import { handleStoarError } from '@/lib/stoar-error-handler';
 import { FileText, Download, Eye, Info } from 'lucide-react';
-import type { QueryResult } from '@stoar/sdk';
 import toast from 'react-hot-toast';
 import { useArConnect } from '@/contexts/ArConnectContext';
 
 function DocumentArchive() {
   const router = useRouter();
   const { isConnected } = useArConnect();
-  const [selectedDocument, setSelectedDocument] = useState<QueryResult | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<any | null>(null);
   const [downloading, setDownloading] = useState(false);
 
-  const handleDocumentSelect = (doc: QueryResult) => {
+  const handleDocumentSelect = (doc: any) => {
     setSelectedDocument(doc);
   };
 
@@ -32,14 +31,14 @@ function DocumentArchive() {
         return;
       }
       
-      const initialized = await stoarWrapper.initWithWallet();
-      if (!initialized) {
+      await arweaveWalletStorage.init();
+      if (!arweaveWalletStorage.getIsInitialized()) {
         toast.error('Unable to initialize Arweave connection.');
         return;
       }
 
       // Fetch the document
-      const data = await stoarWrapper.getDocument(selectedDocument.id);
+      const data = await arweaveWalletStorage.getDocument(selectedDocument.id);
       
       // Parse the encrypted document
       const content = JSON.parse(new TextDecoder().decode(data));
