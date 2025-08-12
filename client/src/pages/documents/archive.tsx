@@ -4,17 +4,18 @@ import Head from 'next/head';
 import DashboardLayout from '@/components/DashboardLayout';
 import DocumentQuery from '@/components/DocumentQuery';
 import { withArConnectAuth } from '@/contexts/ArConnectContext';
-import { StoarService } from '@/lib/stoar';
+import { stoarWrapper } from '@/lib/stoar-wrapper';
 import { handleStoarError } from '@/lib/stoar-error-handler';
 import { FileText, Download, Eye, Info } from 'lucide-react';
 import type { QueryResult } from '@stoar/sdk';
 import toast from 'react-hot-toast';
+import { useArConnect } from '@/contexts/ArConnectContext';
 
 function DocumentArchive() {
   const router = useRouter();
+  const { isConnected } = useArConnect();
   const [selectedDocument, setSelectedDocument] = useState<QueryResult | null>(null);
   const [downloading, setDownloading] = useState(false);
-  const stoar = StoarService.getInstance();
 
   const handleDocumentSelect = (doc: QueryResult) => {
     setSelectedDocument(doc);
@@ -25,17 +26,20 @@ function DocumentArchive() {
 
     setDownloading(true);
     try {
-      // Try to initialize STOAR - it will handle failures gracefully
-      await stoar.init();
+      // Initialize STOAR with wallet if connected
+      if (!isConnected) {
+        toast.error('Please connect your wallet to download documents from Arweave.');
+        return;
+      }
       
-      // Check if STOAR is initialized before trying to download
-      if (!stoar.getIsInitialized()) {
-        toast.error('Unable to connect to Arweave. Please check your wallet connection.');
+      const initialized = await stoarWrapper.initWithWallet();
+      if (!initialized) {
+        toast.error('Unable to initialize Arweave connection.');
         return;
       }
 
       // Fetch the document
-      const data = await stoar.getDocument(selectedDocument.id);
+      const data = await stoarWrapper.getDocument(selectedDocument.id);
       
       // Parse the encrypted document
       const content = JSON.parse(new TextDecoder().decode(data));

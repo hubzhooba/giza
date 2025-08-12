@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Search, FileText, Cloud, Calendar, User, Tag } from 'lucide-react';
-import { StoarService } from '@/lib/stoar';
+import { stoarWrapper } from '@/lib/stoar-wrapper';
 import { useStore } from '@/store/useStore';
 import { handleStoarError } from '@/lib/stoar-error-handler';
 import type { QueryResult } from '@stoar/sdk';
 import toast from 'react-hot-toast';
+import { useArConnect } from '@/contexts/ArConnectContext';
 
 interface DocumentQueryProps {
   roomId?: string;
@@ -35,23 +36,21 @@ export default function DocumentQuery({ roomId, userId, onDocumentSelect }: Docu
   const [isInitialized, setIsInitialized] = useState(false);
   
   const { user, rooms } = useStore();
-  const stoar = StoarService.getInstance();
+  const { isConnected } = useArConnect();
 
-  // Initialize STOAR
+  // Initialize STOAR when wallet is connected
   useEffect(() => {
     const initStoar = async () => {
-      try {
-        // Try to initialize STOAR - it will handle failures gracefully
-        await stoar.init();
-        setIsInitialized(stoar.getIsInitialized());
-      } catch (error) {
-        console.warn('STOAR initialization failed, query features disabled');
+      if (isConnected) {
+        const initialized = await stoarWrapper.initWithWallet();
+        setIsInitialized(initialized);
+      } else {
         setIsInitialized(false);
       }
     };
 
     initStoar();
-  }, []);
+  }, [isConnected]);
 
   const searchDocuments = async (append = false) => {
     if (!isInitialized) {
@@ -75,7 +74,7 @@ export default function DocumentQuery({ roomId, userId, onDocumentSelect }: Docu
         queryOptions.userId = filters.userId;
       }
 
-      const queryResults = await stoar.queryDocuments(queryOptions);
+      const queryResults = await stoarWrapper.queryDocuments(queryOptions);
       
       if (append) {
         setResults(prev => [...prev, ...queryResults]);

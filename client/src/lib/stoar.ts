@@ -74,13 +74,16 @@ export class StoarService {
             await this.client.init('use_wallet');
           } catch (walletError) {
             console.warn('ArConnect not connected, STOAR running in read-only mode');
-            // Initialize without wallet for read-only operations
-            await this.client.init();
+            // Don't initialize without wallet - it causes filesystem errors
+            // Just mark as not initialized for read-only operations
+            this.isInitialized = false;
+            return;
           }
         } else {
           console.warn('No wallet available, STOAR running in read-only mode');
-          // Initialize without wallet for read-only operations
-          await this.client.init();
+          // Don't initialize without wallet - it causes filesystem errors
+          this.isInitialized = false;
+          return;
         }
       } else {
         await this.client.init(walletSource);
