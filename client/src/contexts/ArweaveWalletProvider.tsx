@@ -1,35 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import dynamic from 'next/dynamic';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase-client';
 import { useStore } from '@/store/useStore';
-
-// Dynamically import Arweave Wallet Kit to avoid SSR issues
-const ArweaveWalletKitComponent = dynamic(
-  () => import('@arweave-wallet-kit/react').then(mod => mod.ArweaveWalletKit),
-  { ssr: false }
-);
-
-const useConnectionHook = dynamic(
-  () => import('@arweave-wallet-kit/react').then(mod => mod.useConnection),
-  { ssr: false }
-) as any;
-
-const useApiHook = dynamic(
-  () => import('@arweave-wallet-kit/react').then(mod => mod.useApi),
-  { ssr: false }
-) as any;
-
-const useActiveAddressHook = dynamic(
-  () => import('@arweave-wallet-kit/react').then(mod => mod.useActiveAddress),
-  { ssr: false }
-) as any;
-
-const usePublicKeyHook = dynamic(
-  () => import('@arweave-wallet-kit/react').then(mod => mod.usePublicKey),
-  { ssr: false }
-) as any;
 
 interface ArweaveWalletContextType {
   isConnected: boolean;
@@ -50,8 +23,7 @@ interface ArweaveWalletContextType {
 
 const ArweaveWalletContext = createContext<ArweaveWalletContextType | undefined>(undefined);
 
-// Simplified provider that works without the wallet kit hooks during SSR
-function ArweaveWalletInner({ children }: { children: React.ReactNode }) {
+export function ArweaveWalletProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { setUser } = useStore();
   
@@ -68,6 +40,23 @@ function ArweaveWalletInner({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     checkSession();
   }, []);
+
+  // Listen for wallet events
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleWalletSwitch = () => {
+      if (isConnected && !isDisconnecting) {
+        disconnect();
+      }
+    };
+
+    window.addEventListener('walletSwitch', handleWalletSwitch);
+    
+    return () => {
+      window.removeEventListener('walletSwitch', handleWalletSwitch);
+    };
+  }, [isConnected, isDisconnecting]);
 
   // Check for active session
   const checkSession = async () => {
@@ -101,23 +90,22 @@ function ArweaveWalletInner({ children }: { children: React.ReactNode }) {
             setIsConnected(true);
             
             // Set user in global store
+            const publicKey = await window.arweaveWallet.getActivePublicKey();
             setUser({
               id: storedWallet,
               email: profile?.email || `${storedWallet.substring(0, 8)}...${storedWallet.slice(-6)}@arweave`,
               name: profile?.display_name || profile?.username || `${storedWallet.substring(0, 8)}...${storedWallet.slice(-6)}`,
-              publicKey: '',
+              publicKey: publicKey || '',
               createdAt: profile?.created_at ? new Date(profile.created_at) : new Date(),
               updatedAt: new Date(),
             });
             
             await refreshBalanceInternal(storedWallet);
           } else {
-            localStorage.removeItem('arweave_wallet_address');
-            localStorage.removeItem('arweave_username');
+            clearSession();
           }
         } catch (e) {
-          localStorage.removeItem('arweave_wallet_address');
-          localStorage.removeItem('arweave_username');
+          clearSession();
         }
       }
     } catch (error) {
@@ -127,13 +115,24 @@ function ArweaveWalletInner({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const clearSession = () => {
+    localStorage.removeItem('arweave_wallet_address');
+    localStorage.removeItem('arweave_username');
+    setIsConnected(false);
+    setWalletAddress(null);
+    setUsernameState(null);
+    setDisplayName(null);
+    setIsUsernameSet(false);
+  };
+
   // Connect wallet
   const connect = async () => {
     try {
       setIsLoading(true);
       
       if (typeof window === 'undefined' || !window.arweaveWallet) {
-        toast.error('Please install a wallet extension');
+        toast.error('Please install ArConnect, Wander or another Arweave wallet extension');
+        window.open('https://www.arconnect.io/download', '_blank');
         return;
       }
       
@@ -202,9 +201,9 @@ function ArweaveWalletInner({ children }: { children: React.ReactNode }) {
         toast.success(`Welcome back${profile.username ? ', ' + profile.username : ''}!`);
         
         if (!profile.username) {
-          router.push('/onboarding', undefined, { shallow: true });
+          router.push('/onboarding');
         } else {
-          router.push('/dashboard', undefined, { shallow: true });
+          router.push('/dashboard');
         }
       } else {
         // New user - create profile
@@ -241,7 +240,7 @@ function ArweaveWalletInner({ children }: { children: React.ReactNode }) {
           });
           
           toast.success('Welcome! Please set your username.');
-          router.push('/onboarding', undefined, { shallow: true });
+          router.push('/onboarding');
         } else {
           console.error('Profile creation error:', insertError);
           // Even if profile creation fails, set user with wallet info
@@ -258,7 +257,7 @@ function ArweaveWalletInner({ children }: { children: React.ReactNode }) {
           });
           
           toast.success('Connected with wallet!');
-          router.push('/dashboard', undefined, { shallow: true });
+          router.push('/dashboard');
         }
       }
       
@@ -268,8 +267,7 @@ function ArweaveWalletInner({ children }: { children: React.ReactNode }) {
     } catch (error: any) {
       console.error('Wallet connection failed:', error);
       toast.error(error.message || 'Failed to connect wallet');
-      localStorage.removeItem('arweave_wallet_address');
-      localStorage.removeItem('arweave_username');
+      clearSession();
     } finally {
       setIsLoading(false);
     }
@@ -282,19 +280,10 @@ function ArweaveWalletInner({ children }: { children: React.ReactNode }) {
     setIsDisconnecting(true);
     
     // Clear session
-    localStorage.removeItem('arweave_wallet_address');
-    localStorage.removeItem('arweave_username');
+    clearSession();
     
     // Clear user from global store
     setUser(null);
-    
-    // Reset state
-    setIsConnected(false);
-    setWalletAddress(null);
-    setUsernameState(null);
-    setDisplayName(null);
-    setIsUsernameSet(false);
-    setBalance(null);
     
     // Disconnect from wallet
     if (typeof window !== 'undefined' && window.arweaveWallet?.disconnect) {
@@ -466,17 +455,6 @@ function ArweaveWalletInner({ children }: { children: React.ReactNode }) {
     }}>
       {children}
     </ArweaveWalletContext.Provider>
-  );
-}
-
-// Main provider component - simplified without wallet kit
-export function ArweaveWalletProvider({ children }: { children: React.ReactNode }) {
-  // For now, we'll use a simplified version without the wallet kit
-  // to avoid build issues with CSS imports
-  return (
-    <ArweaveWalletInner>
-      {children}
-    </ArweaveWalletInner>
   );
 }
 
