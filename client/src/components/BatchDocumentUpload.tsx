@@ -6,6 +6,7 @@ import { arweaveWalletStorage } from '@/lib/arweave-wallet-storage';
 import { useStore } from '@/store/useStore';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { useArConnect } from '@/contexts/ArConnectContext';
 
 interface BatchDocumentUploadProps {
   roomId: string;
@@ -29,6 +30,7 @@ export default function BatchDocumentUpload({ roomId, encryptionKey, onUploadCom
   const [estimatedCost, setEstimatedCost] = useState<string>('');
   
   const { addDocument, rooms, user, addActivity } = useStore();
+  const { isConnected } = useArConnect();
   const encryption = EncryptionService.getInstance();
   // arweaveWalletStorage is already a singleton
   
@@ -38,21 +40,27 @@ export default function BatchDocumentUpload({ roomId, encryptionKey, onUploadCom
   useEffect(() => {
     const initStorage = async () => {
       try {
-        await arweaveWalletStorage.init();
-        setStoarInitialized(arweaveWalletStorage.getIsInitialized());
+        // Only initialize if wallet is connected
+        if (isConnected) {
+          await arweaveWalletStorage.init();
+          setStoarInitialized(arweaveWalletStorage.getIsInitialized());
 
-        if (arweaveWalletStorage.getIsInitialized()) {
-          const { balance } = await arweaveWalletStorage.checkBalance();
-          setWalletBalance(balance);
+          if (arweaveWalletStorage.getIsInitialized()) {
+            const { balance } = await arweaveWalletStorage.checkBalance();
+            setWalletBalance(balance);
+          }
+        } else {
+          console.log('Wallet not connected, Arweave storage not initialized');
+          setStoarInitialized(false);
         }
       } catch (error) {
         console.error('Failed to initialize Arweave storage:', error);
-        toast.error('Failed to connect to Arweave wallet');
+        setStoarInitialized(false);
       }
     };
 
     initStorage();
-  }, []);
+  }, [isConnected]);
 
   // Calculate estimated cost based on file sizes
   useEffect(() => {

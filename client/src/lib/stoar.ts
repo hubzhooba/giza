@@ -67,27 +67,35 @@ export class StoarService {
       // Try to initialize with wallet
       if (!walletSource) {
         // Check if wallet is connected through Arweave Wallet Kit
-        // The wallet kit will handle the connection status
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && window.arweaveWallet) {
           try {
-            // Try to use wallet through STOAR's use_wallet mode
-            // This will work with any wallet connected via Arweave Wallet Kit
-            await this.client.init('use_wallet');
-            this.isInitialized = true;
+            // Check if wallet is actually connected
+            const address = await window.arweaveWallet.getActiveAddress();
+            if (address) {
+              // Wallet is connected, use it with STOAR
+              await this.client.init('use_wallet');
+              this.isInitialized = true;
+              console.log('STOAR initialized with connected Arweave wallet');
+            } else {
+              // No active address, wallet not fully connected
+              console.warn('Arweave wallet exists but no active address, STOAR in read-only mode');
+              this.isInitialized = false;
+              return;
+            }
           } catch (walletError) {
-            console.warn('Wallet not connected, STOAR running in read-only mode');
-            // Don't initialize without wallet - it causes filesystem errors
-            // Just mark as not initialized for read-only operations
+            // Wallet exists but couldn't get address or init failed
+            console.warn('Could not initialize STOAR with wallet:', walletError);
             this.isInitialized = false;
             return;
           }
         } else {
-          console.warn('No wallet available, STOAR running in read-only mode');
-          // Don't initialize without wallet - it causes filesystem errors
+          // No wallet extension installed
+          console.warn('No Arweave wallet detected, STOAR running in read-only mode');
           this.isInitialized = false;
           return;
         }
       } else {
+        // Initialize with provided wallet source
         await this.client.init(walletSource);
         this.isInitialized = true;
       }

@@ -28,7 +28,7 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
   const [stoarInitialized, setStoarInitialized] = useState(false);
   const [walletBalance, setWalletBalance] = useState<string>('');
   const { addDocument, rooms, user, addActivity } = useStore();
-  const { balance } = useArConnect();
+  const { balance, isConnected } = useArConnect();
   const { uploadDocument } = useSignedAction();
   const encryption = EncryptionService.getInstance();
   // arweaveWalletStorage is already a singleton
@@ -39,20 +39,26 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
   useEffect(() => {
     const initStorage = async () => {
       try {
-        // Try to initialize Arweave Storage - it will handle wallet connection gracefully
-        await arweaveWalletStorage.init();
-        setStoarInitialized(arweaveWalletStorage.getIsInitialized());
+        // Only initialize if wallet is connected
+        if (isConnected) {
+          // Try to initialize Arweave Storage with connected wallet
+          await arweaveWalletStorage.init();
+          setStoarInitialized(arweaveWalletStorage.getIsInitialized());
 
-        // Only check balance if initialized successfully
-        if (arweaveWalletStorage.getIsInitialized()) {
-          try {
-            const { balance } = await arweaveWalletStorage.checkBalance();
-            setWalletBalance(balance);
+          // Only check balance if initialized successfully
+          if (arweaveWalletStorage.getIsInitialized()) {
+            try {
+              const { balance } = await arweaveWalletStorage.checkBalance();
+              setWalletBalance(balance);
           } catch (balanceError) {
             console.warn('Could not check wallet balance:', balanceError);
             setWalletBalance('unknown');
           }
         }
+      } else {
+        console.log('Wallet not connected, Arweave storage not initialized');
+        setStoarInitialized(false);
+      }
       } catch (error) {
         console.warn('Arweave storage initialization failed, uploads will use local storage only');
         setStoarInitialized(false);
@@ -60,7 +66,7 @@ export default function DocumentUpload({ roomId, encryptionKey }: DocumentUpload
     };
 
     initStorage();
-  }, []);
+  }, [isConnected]);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     setFiles(acceptedFiles);
